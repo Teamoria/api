@@ -47,6 +47,9 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.teamoria.online/
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
