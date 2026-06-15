@@ -15,7 +15,7 @@ Route::get('/health', function (Request $request) {
     ]);
 });
 
-Route::middleware('check.api.key')->prefix('v1')->group(function () {
+Route::middleware('check-api-key')->prefix('v1')->group(function () {
     Route::post('auth/login', LoginController::class)->middleware('throttle:5,1');
     Route::post('auth/register', RegisterController::class)->middleware('throttle:5,1');
 
