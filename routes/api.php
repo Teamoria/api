@@ -7,9 +7,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+Route::get('/health', function (Request $request) {
+    return response()->json([
+        'success' => true,
+        'message' => 'API is healthy.',
+        'data' => [],
+    ]);
+});
 
 Route::prefix('v1')->group(function () {
     Route::post('auth/login', LoginController::class)->middleware('check.api.key');
