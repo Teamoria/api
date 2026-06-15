@@ -12,9 +12,8 @@ class LogoutController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
-        Log::error('test '.Auth::user());
 
-        // Auth::user()->currentAccessToken()->delete();
+        Auth::user()->currentAccessToken()->delete();
 
         return $this->successResponse(
             [],
