@@ -100,7 +100,7 @@ class ApiException extends Exception
             'data' => $this->resolveData(),
         ];
 
-        return array_filter($response, fn($v) => $v !== null);
+        return array_filter($response, fn ($v) => $v !== null);
     }
 
     private function resolveData(): mixed
