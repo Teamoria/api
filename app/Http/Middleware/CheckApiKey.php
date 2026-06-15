@@ -11,7 +11,7 @@ class CheckApiKey
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $configuredApiKey = config('app.api_key');
+        $configuredApiKey = config('api.key');
         $providedApiKey = $request->header('x-api-key');
 
         if (
