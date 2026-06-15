@@ -2,9 +2,9 @@ name: Laravel CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   # CI
@@ -12,36 +12,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.4'
-        extensions: mbstring, xml, ctype, intl, pdo_sqlite, dom, filter, gd, iconv, json, libxml, openssl, pcre, phar, session, tokenizer, xmlwriter
-        coverage: none
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, ctype, intl, pdo_sqlite, dom, filter, gd, iconv, json, libxml, openssl, pcre, phar, session, tokenizer, xmlwriter
+          coverage: none
 
-    - name: Copy .env
-      run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+      - name: Install Composer Dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
 
-    - name: Install Composer Dependencies
-      run: composer install --prefer-dist --no-progress --no-interaction
+      - name: Generate Application Key
+        run: php artisan key:generate
 
-    - name: Generate Application Key
-      run: php artisan key:generate
+      - name: Create Database
+        run: touch database/database.sqlite
 
-    - name: Create Database for Testing
-      run: |
-        touch database/database.sqlite
-        sed -i -e 's/DB_CONNECTION=mysql/DB_CONNECTION=sqlite/' .env
-        sed -i -e '/DB_DATABASE/d' .env
+      - name: Run Migrations
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+        run: php artisan migrate --force
 
-    - name: Run Migrations
-      run: php artisan migrate --force
-
-    - name: Run Tests
-      run: php artisan test
+      - name: Run Tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+        run: php artisan test
 
   # CD
   deploy:
@@ -53,26 +53,26 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-    - name: Deploy to Server via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        port: ${{ secrets.SERVER_SSH_PORT }}
-        username: ${{ secrets.SERVER_USERNAME }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        script: |
-          cd ${{ secrets.PROJECT_PATH }}
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_SSH_PORT }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd ${{ secrets.PROJECT_PATH }}
 
-          php artisan down || true
+            php artisan down || true
 
-          git pull origin main
+            git pull origin main
 
-          composer install --no-interaction --prefer-dist --optimize-autoloader
+            composer install --no-interaction --prefer-dist --optimize-autoloader
 
-          php artisan migrate --force
+            php artisan migrate --force
 
-          php artisan optimize:clear
-          php artisan config:cache
-          php artisan route:cache
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
 
-          php artisan up
+            php artisan up
