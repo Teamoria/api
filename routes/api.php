@@ -15,9 +15,9 @@ Route::get('/health', function (Request $request) {
     ]);
 });
 
-Route::prefix('v1')->group(function () {
-    Route::post('auth/login', LoginController::class)->middleware('check.api.key');
-    Route::post('auth/register', RegisterController::class)->middleware('check.api.key');
+Route::middleware('check.api.key')->prefix('v1')->group(function () {
+    Route::post('auth/login', LoginController::class)->throttle(5, 1);
+    Route::post('auth/register', RegisterController::class)->throttle(5, 1);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('auth/logout', LogoutController::class);
