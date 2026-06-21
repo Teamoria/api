@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Services;
+
+use App\Mail\OtpMail;
+use App\OtpType;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
+
+class OtpService
+{
+    public function generate(string $email, OtpType $type): void
+    {
+        $cacheKey = $this->cacheKey($email, $type);
+
+        Cache::forget($cacheKey);
+
+        $code = rand(100000, 999999);
+        $ttl = now()->addMinutes(config('auth.otp_expiry_time', 10));
+
+        Cache::put($cacheKey, $code, $ttl);
+
+        try {
+            Mail::to($email)->send(new OtpMail($code, $type->value, $type->subject()));
+        } catch (\Exception $e) {
+        }
+    }
+
+    public function verify(string $email, int $code, OtpType $type): bool
+    {
+        $cacheKey = $this->cacheKey($email, $type);
+        $cachedCode = Cache::get($cacheKey);
+
+        if ($cachedCode && $cachedCode === $code) {
+            Cache::forget($cacheKey);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function cacheKey(string $email, OtpType $type): string
+    {
+        return "otp:{$type->value}:{$email}";
+    }
+}
