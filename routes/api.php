@@ -22,7 +22,6 @@ Route::middleware('check-api-key')->prefix('v1')->group(function () {
     Route::post('auth/login', LoginController::class)->middleware('throttle:5,1');
     Route::post('auth/register', RegisterController::class)->middleware('throttle:5,1');
     Route::post('otp/send', SendOtpController::class)->middleware('throttle:5,1');
-    Route::post('auth/forgot-password', VerifyOtpController::class)->middleware('throttle:5,1');
     Route::post('otp/verify', VerifyOtpController::class)->middleware('throttle:5,1');
 
     Route::middleware('auth:sanctum')->group(function () {
