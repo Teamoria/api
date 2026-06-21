@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\v1\Auth;
 use App\Http\Controllers\Api\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Models\User;
+use App\OtpType;
+use App\Services\OtpService;
 use App\UserRole;
 use App\UserStatus;
 use Illuminate\Http\JsonResponse;
@@ -13,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RegisterController extends Controller
 {
-    public function __invoke(RegisterRequest $request): JsonResponse
+    public function __invoke(RegisterRequest $request, OtpService $otpService): JsonResponse
     {
         DB::beginTransaction();
 
@@ -28,15 +30,22 @@ class RegisterController extends Controller
                 'status' => UserStatus::PENDING->value,
             ]);
 
-            $token = $user->createToken('api_token');
+            $code = $otpService->generate($validated['email'], OtpType::Register);
 
             DB::commit();
 
+            $data = [
+                'type' => OtpType::Register->value,
+                'expires_in' => config('auth.otp_expiry_time', 10),
+            ];
+
+            if (env('APP_DEBUG')) {
+                $data['code'] = $code;
+            }
+
             return $this->successResponse(
-                [
-                    'token' => $token->plainTextToken,
-                ],
-                'User registered successfully.',
+                $data,
+                'User registered successfully. Please verify your email.',
                 Response::HTTP_CREATED
             );
         } catch (\Exception $exception) {
