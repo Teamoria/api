@@ -3,21 +3,17 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
-class OtpMail extends Mailable implements ShouldQueue
+class OtpMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable;
 
     public string $code;
 
     public string $type;
-
-    public string $subject;
 
     public function __construct(string $code, string $type, string $subject = 'Verification Code')
     {

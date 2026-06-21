@@ -4,26 +4,33 @@ namespace App\Services;
 
 use App\Mail\OtpMail;
 use App\OtpType;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 
 class OtpService
 {
-    public function generate(string $email, OtpType $type): void
+    public function generate(string $email, OtpType $type): string|false
     {
         $cacheKey = $this->cacheKey($email, $type);
 
         Cache::forget($cacheKey);
 
         $code = rand(100000, 999999);
-        $ttl = now()->addMinutes(config('auth.otp_expiry_time', 10));
+        $minutes = (int) config('auth.otp_expiry_time', 10);
+        $ttl = Carbon::now()->addMinutes($minutes);
 
         Cache::put($cacheKey, $code, $ttl);
 
         try {
             Mail::to($email)->send(new OtpMail($code, $type->value, $type->subject()));
-        } catch (\Exception $e) {
+
+            return $code;
+        } catch (\Exception $exception) {
+            report($exception);
         }
+
+        return false;
     }
 
     public function verify(string $email, int $code, OtpType $type): bool
