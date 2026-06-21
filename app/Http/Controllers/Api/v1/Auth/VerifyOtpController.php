@@ -35,7 +35,7 @@ class VerifyOtpController extends Controller
 
     private function handleEmailVerification(string $email): JsonResponse
     {
-        $user = User::where('email', $email)->first();
+        $user = User::firstWhere('email', $email);
 
         if (! $user) {
             return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
@@ -58,7 +58,7 @@ class VerifyOtpController extends Controller
 
     private function handleForgotPassword(string $email, string $newPassword): JsonResponse
     {
-        $user = User::where('email', '=', $email)->first();
+        $user = User::firstWhere('email', $email);
 
         if (! $user) {
             return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
