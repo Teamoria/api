@@ -114,4 +114,6 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    'otp_expiry_time' => env('OTP_EXPIRY_TIME', 10),
+
 ];
