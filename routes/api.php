@@ -14,7 +14,9 @@ Route::get('/health', function (Request $request) {
     return response()->json([
         'success' => true,
         'message' => 'API is healthy.',
-        'data' => [],
+        'data' => [
+            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2) . ' ms',
+        ],
     ]);
 });
 
