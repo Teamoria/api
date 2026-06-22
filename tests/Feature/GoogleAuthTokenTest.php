@@ -13,7 +13,7 @@ beforeEach(function () {
 });
 
 it('authenticates a new user with a Google access token', function () {
-    $googleUser = SocialiteUser::fake([
+    $googleUser = (new SocialiteUser)->map([
         'id' => 'google-123',
         'name' => 'Google User',
         'email' => 'google@example.com',
@@ -49,7 +49,7 @@ it('links Google to an existing password account', function () {
     ]);
     $existingPassword = $user->password;
 
-    $googleUser = SocialiteUser::fake([
+    $googleUser = (new SocialiteUser)->map([
         'id' => 'google-456',
         'name' => 'Different Google Name',
         'email' => 'existing@example.com',
@@ -101,7 +101,7 @@ it('rejects a Google identity that conflicts with an existing link', function ()
         'google_id' => 'google-original',
     ]);
 
-    $googleUser = SocialiteUser::fake([
+    $googleUser = (new SocialiteUser)->map([
         'id' => 'google-different',
         'email' => 'existing@example.com',
     ]);
