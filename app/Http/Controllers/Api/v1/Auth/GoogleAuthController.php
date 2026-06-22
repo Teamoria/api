@@ -9,9 +9,6 @@ use Laravel\Socialite\Facades\Socialite;
 
 class GoogleAuthController extends Controller
 {
-    /**
-     * Returns the Google OAuth redirect URL for the frontend to open.
-     */
     public function redirect(): JsonResponse
     {
         $redirectUrl = Socialite::driver('google')
@@ -25,9 +22,6 @@ class GoogleAuthController extends Controller
         );
     }
 
-    /**
-     * Handles the callback from Google after the user authenticates.
-     */
     public function handleCallback(): JsonResponse
     {
         try {
@@ -48,11 +42,15 @@ class GoogleAuthController extends Controller
                 'name' => $googleUser->getName(),
                 'google_id' => $googleUser->getId(),
                 'password' => str()->random(32),
+                'email_verified_at' => now()
             ]
         );
 
         if (! $user->google_id) {
             $user->update(['google_id' => $googleUser->getId()]);
+        }
+        if (! $user->email_verified_at) {
+            $user->update(['email_verified_at' => now()]);
         }
 
         $token = $user->createToken('api_token');
