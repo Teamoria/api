@@ -24,6 +24,7 @@ Route::get('/health', function (Request $request) {
 Route::middleware('check-api-key')->prefix('v1')->group(function () {
     Route::post('auth/login', LoginController::class)->middleware('throttle:5,1');
     Route::post('auth/register', RegisterController::class)->middleware('throttle:5,1');
+    Route::post('auth/google', [GoogleAuthController::class, 'loginWithToken'])->middleware('throttle:10,1');
     Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirect'])->middleware('throttle:10,1');
     Route::post('otp/send', SendOtpController::class)->middleware('throttle:5,1');
     Route::post('otp/verify', VerifyOtpController::class)->middleware('throttle:5,1');
