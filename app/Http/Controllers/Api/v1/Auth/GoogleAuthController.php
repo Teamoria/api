@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Api\v1\Auth;
 
 use App\Http\Controllers\Api\Controller;
+use App\Http\Requests\GoogleTokenLoginRequest;
 use App\Models\User;
-use Carbon\Carbon;
+use App\UserStatus;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Laravel\Socialite\AbstractUser;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\GoogleProvider;
@@ -18,19 +19,15 @@ use Throwable;
 
 class GoogleAuthController extends Controller
 {
-    public function loginWithToken(Request $request): JsonResponse
+    public function loginWithToken(GoogleTokenLoginRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'provider_token' => ['required', 'string'],
-        ]);
-
         try {
             /** @var GoogleProvider $driver */
             $driver = Socialite::driver('google');
 
             $googleUser = $driver
                 ->stateless()
-                ->userFromToken($validated['provider_token']);
+                ->userFromToken($request->validated()['provider_token']);
 
             [$user, $token] = DB::transaction(function () use ($googleUser): array {
                 $user = $this->findOrCreateUser($googleUser);
@@ -80,43 +77,34 @@ class GoogleAuthController extends Controller
             $googleUser = $driver
                 ->stateless()
                 ->user();
-        } catch (\Exception $e) {
+
+            $token = DB::transaction(function () use ($googleUser): string {
+                $user = $this->findOrCreateUser($googleUser);
+
+                return $user->createToken('api_token')->plainTextToken;
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+
             return $this->errorResponse(
                 'Google authentication failed.',
                 Response::HTTP_UNAUTHORIZED,
-                ['error' => $e->getMessage()]
+                ['error' => $exception->getMessage()]
             );
         }
 
-        $user = User::firstOrCreate(
-            ['email' => $googleUser->getEmail()],
-            [
-                'name' => $googleUser->getName(),
-                'google_id' => $googleUser->getId(),
-                'password' => str()->random(32),
-                'email_verified_at' => now(),
-            ]
-        );
-
-        if (! $user->google_id) {
-            $user->google_id = $googleUser->getId();
-            $user->save();
-        }
-        if (! $user->email_verified_at) {
-            $user->email_verified_at = now();
-            $user->save();
-        }
-
-        $token = $user->createToken('api_token');
-
         return $this->successResponse(
-            ['token' => $token->plainTextToken],
+            ['token' => $token],
             'Logged in successfully via Google.'
         );
     }
 
     private function findOrCreateUser(SocialiteUser $googleUser): User
     {
+        if ($googleUser instanceof AbstractUser && ($googleUser->getRaw()['email_verified'] ?? null) === false) {
+            throw new RuntimeException('Google account email is not verified.');
+        }
+
         $googleId = $googleUser->getId();
         $email = $googleUser->getEmail();
 
@@ -131,17 +119,22 @@ class GoogleAuthController extends Controller
                 'google_id' => $googleId,
                 'password' => Str::random(64),
                 'email_verified_at' => now(),
+                'status' => UserStatus::ACTIVE->value,
             ]
         );
+
         if (! $user->google_id) {
             $user->google_id = $googleId;
-            $user->save();
+            $user->status = UserStatus::ACTIVE->value;
         } elseif (! hash_equals((string) $user->google_id, $googleId)) {
             throw new RuntimeException('The Google account does not match the linked account.');
         }
 
         if (! $user->email_verified_at) {
-            $user->email_verified_at = Carbon::now();
+            $user->email_verified_at = now();
+        }
+
+        if ($user->isDirty()) {
             $user->save();
         }
 

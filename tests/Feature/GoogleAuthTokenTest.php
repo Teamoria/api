@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\UserStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Socialite\Facades\Socialite;
@@ -37,6 +38,7 @@ it('authenticates a new user with a Google access token', function () {
     $user = User::query()->where('email', 'google@example.com')->firstOrFail();
 
     expect($user->google_id)->toBe('google-123')
+        ->and($user->status)->toBe(UserStatus::ACTIVE)
         ->and(Hash::check('valid-google-token', $user->password))->toBeFalse()
         ->and($user->tokens)->toHaveCount(1);
 });
@@ -71,6 +73,7 @@ it('links Google to an existing password account', function () {
     expect($user->name)->toBe('Existing User')
         ->and($user->password)->toBe($existingPassword)
         ->and($user->google_id)->toBe('google-456')
+        ->and($user->status)->toBe(UserStatus::ACTIVE)
         ->and($user->tokens)->toHaveCount(1);
 });
 
@@ -115,6 +118,24 @@ it('rejects a Google identity that conflicts with an existing link', function ()
 
     expect(User::query()->where('email', 'existing@example.com')->value('google_id'))
         ->toBe('google-original');
+});
+
+it('rejects a Google account with an unverified email', function () {
+    $googleUser = (new SocialiteUser)
+        ->setRaw(['email_verified' => false])
+        ->map([
+            'id' => 'google-unverified',
+            'email' => 'unverified@example.com',
+        ]);
+
+    mockGoogleProvider('valid-google-token', $googleUser);
+
+    $this->postJson('/api/v1/auth/google', [
+        'provider_token' => 'valid-google-token',
+    ], apiHeaders())
+        ->assertUnauthorized();
+
+    expect(User::query()->where('email', 'unverified@example.com')->exists())->toBeFalse();
 });
 
 function mockGoogleProvider(string $providerToken, SocialiteUser $googleUser): void
