@@ -39,7 +39,7 @@ class RegisterController extends Controller
                 'expires_in' => config('auth.otp_expiry_time', 10),
             ];
 
-            if (env('APP_DEBUG')) {
+            if (config('app.debug')) {
                 $data['code'] = $code;
             }
 
