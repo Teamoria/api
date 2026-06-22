@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\v1\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\v1\Auth\LoginController;
 use App\Http\Controllers\Api\v1\Auth\LogoutController;
 use App\Http\Controllers\Api\v1\Auth\RegisterController;
@@ -15,7 +16,7 @@ Route::get('/health', function (Request $request) {
         'success' => true,
         'message' => 'API is healthy.',
         'data' => [
-            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2) . ' ms',
+            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2).' ms',
         ],
     ]);
 });
@@ -23,6 +24,7 @@ Route::get('/health', function (Request $request) {
 Route::middleware('check-api-key')->prefix('v1')->group(function () {
     Route::post('auth/login', LoginController::class)->middleware('throttle:5,1');
     Route::post('auth/register', RegisterController::class)->middleware('throttle:5,1');
+    Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirect'])->middleware('throttle:10,1');
     Route::post('otp/send', SendOtpController::class)->middleware('throttle:5,1');
     Route::post('otp/verify', VerifyOtpController::class)->middleware('throttle:5,1');
 

@@ -25,6 +25,7 @@ use Laravel\Sanctum\HasApiTokens;
     'timezone',
     'last_login_at',
     'remember_token',
+    'google_id',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
