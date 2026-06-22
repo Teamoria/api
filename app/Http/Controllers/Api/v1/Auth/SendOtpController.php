@@ -31,7 +31,7 @@ class SendOtpController extends Controller
             'type' => $type,
         ];
         $code = $otpService->generate($data['email'], $data['type']);
-        if (env('APP_DEBUG', false)) {
+        if (config('app.debug')) {
             $data['code'] = $code;
         }
 
