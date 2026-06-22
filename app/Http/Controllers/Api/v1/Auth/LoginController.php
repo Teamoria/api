@@ -4,23 +4,44 @@ namespace App\Http\Controllers\Api\v1\Auth;
 
 use App\Http\Controllers\Api\Controller;
 use App\Http\Requests\LoginRequest;
-use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use App\UserStatus;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
 
 class LoginController extends Controller
 {
-    public function __invoke(LoginRequest $request)
+    public function __invoke(LoginRequest $request): JsonResponse
     {
-        $credentials = $request->validated();
+        $validated = $request->validated();
+        $user = User::query()->where('email', $validated['email'])->first();
 
-        if (! Auth::attempt($credentials)) {
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return $this->errorResponse(
-                'Invalid credentials',
-                401,
-                ['error' => 'Invalid credentials']
+                message: 'Invalid credentials.',
+                code: Response::HTTP_UNAUTHORIZED,
+                errorCode: 'INVALID_CREDENTIALS',
             );
         }
 
-        $token = Auth::user()->createToken('api_token');
+        if (! $user->email_verified_at || $user->status === UserStatus::PENDING) {
+            return $this->errorResponse(
+                message: 'Your account is registered but your email address is not verified. Please verify your email before logging in.',
+                code: Response::HTTP_FORBIDDEN,
+                errorCode: 'EMAIL_NOT_VERIFIED',
+            );
+        }
+
+        if ($user->status !== UserStatus::ACTIVE) {
+            return $this->errorResponse(
+                message: 'Your account is not active. Please contact support.',
+                code: Response::HTTP_FORBIDDEN,
+                errorCode: 'ACCOUNT_INACTIVE',
+            );
+        }
+
+        $token = $user->createToken('api_token');
 
         return $this->successResponse(
             [
