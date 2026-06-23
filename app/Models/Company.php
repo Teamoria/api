@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Company extends Model
 {
-    protected $fillable = ['name', 'status'];
+    use SoftDeletes;
+
+    protected $fillable = ['name', 'industry', 'website', 'address', 'status'];
 
     public function users()
     {
