@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class KnowledgeChunk extends Model
 {
@@ -16,12 +17,12 @@ class KnowledgeChunk extends Model
         ];
     }
 
-    public function project()
+    public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
     }
 
-    public function upload()
+    public function upload(): BelongsTo
     {
         return $this->belongsTo(Upload::class);
     }

@@ -6,25 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('project_user', function (Blueprint $table) {
+        Schema::create('uploads', function (Blueprint $table) {
             $table->id();
             $table->foreignId('project_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
-            $table->string('role')->default('member');
+            $table->string('file_path');
+            $table->string('file_name');
+            $table->string('file_type');
+            $table->unsignedBigInteger('file_size')->default(0);
+            $table->string('status')->default('uploading');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('project_user');
+        Schema::dropIfExists('uploads');
     }
 };
