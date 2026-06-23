@@ -16,6 +16,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable([
+    'company_id',
     'name',
     'email',
     'password',
@@ -42,5 +43,30 @@ class User extends Authenticatable
             'role' => UserRole::class,
             'status' => UserStatus::class,
         ];
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class)->withPivot('role')->withTimestamps();
+    }
+
+    public function assignedTasks()
+    {
+        return $this->belongsToMany(Task::class, 'task_user')->withTimestamps();
+    }
+
+    public function taskNotes()
+    {
+        return $this->hasMany(TaskNote::class);
+    }
+
+    public function uploads()
+    {
+        return $this->hasMany(Upload::class);
     }
 }

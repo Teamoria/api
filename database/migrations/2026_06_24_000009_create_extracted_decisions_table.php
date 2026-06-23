@@ -11,8 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('agents', function (Blueprint $table) {
+        Schema::create('extracted_decisions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('meeting_summary_id')->constrained()->cascadeOnDelete();
+            $table->text('decision_text');
             $table->timestamps();
         });
     }
@@ -22,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('agents');
+        Schema::dropIfExists('extracted_decisions');
     }
 };

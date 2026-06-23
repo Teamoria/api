@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('uploads', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('project_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
+            $table->string('file_path');
+            $table->string('file_type');
+            $table->string('status')->default('processing'); // processing, completed, failed
             $table->timestamps();
         });
     }
