@@ -15,7 +15,7 @@ Route::get('/health', function () {
         'success' => true,
         'message' => 'API is healthy.',
         'data' => [
-            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2) . ' ms',
+            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2).' ms',
         ],
     ]);
 })->name('api.health');
