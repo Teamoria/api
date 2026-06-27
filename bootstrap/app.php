@@ -2,6 +2,7 @@
 
 use App\Exceptions\ApiException;
 use App\Http\Middleware\CheckApiKey;
+use App\Http\Middleware\checkRole;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'check-api-key' => CheckApiKey::class,
+            'checkRole' => checkRole::class,
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {
