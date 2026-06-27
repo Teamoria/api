@@ -14,7 +14,6 @@ class ResetPasswordController extends Controller
     {
         $validated = $request->validated();
 
-
         if ($validated['old_password'] === $validated['new_password']) {
             return $this->errorResponse(
                 'Old and new passwords cannot be the same.',
@@ -24,7 +23,7 @@ class ResetPasswordController extends Controller
 
         $user = Auth::user();
 
-        if (!Hash::check($validated['old_password'], $user->password)) {
+        if (! Hash::check($validated['old_password'], $user->password)) {
             return $this->errorResponse(
                 'Invalid password.',
                 Response::HTTP_UNAUTHORIZED
