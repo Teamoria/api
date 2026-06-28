@@ -37,7 +37,7 @@ class CompanyController extends Controller
     public function store(StoreCompanyRequest $request)
     {
         $validated = $request->validated();
-        $company = Company::create($validated->all());
+        $company = Company::create($validated);
 
         return $this->successResponse(
             new CompanyResource($company),
@@ -55,10 +55,11 @@ class CompanyController extends Controller
         );
     }
 
-    public function update(UpdateCompanyRequest $request, Company $company)
+    public function update(UpdateCompanyRequest $request, string $id)
     {
         $validated = $request->validated();
-        $company->update($validated->all());
+        $company = Company::findOrFail($id);
+        $company->update($validated);
 
         return $this->successResponse(
             new CompanyResource($company),
@@ -67,19 +68,21 @@ class CompanyController extends Controller
         );
     }
 
-    public function destroy(Company $company)
+    public function destroy(string $id)
     {
+        $company = Company::findOrFail($id);
         $company->delete();
 
         return $this->successResponse(
             null,
             'Company deleted successfully.',
-            204
+            200
         );
     }
 
-    public function restore(Company $company)
+    public function restore(string $id)
     {
+        $company = Company::withTrashed()->findOrFail($id);
         $company->restore();
 
         return $this->successResponse(
@@ -89,14 +92,14 @@ class CompanyController extends Controller
         );
     }
 
-    public function forceDelete(Company $company)
+    public function forceDelete(string $id)
     {
-        $company->forceDelete();
-
+        $deleted = Company::withTrashed()->findOrFail($id);
+        $deleted->forceDelete();
         return $this->successResponse(
             null,
             'Company force deleted successfully.',
-            204
+            200
         );
     }
 }

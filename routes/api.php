@@ -59,10 +59,10 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
-                Route::put('/{company}', 'update')->name('update');
-                Route::delete('/{company}', 'destroy')->name('destroy');
-                Route::patch('/{company}/restore', 'restore')->name('restore');
-                Route::delete('/{company}/force-delete', 'forceDelete')->name('force-delete');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+                Route::patch('/{id}/restore', 'restore')->name('restore');
+                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
             });
 
         Route::controller(ProfileController::class)->prefix('profile')->name('profile.')->group(function () {
