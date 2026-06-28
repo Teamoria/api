@@ -12,8 +12,8 @@ class checkRole
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
 
-        $user = Auth::user();
-        if (! in_array($user->role->value, $roles)) {
+        $role = Auth::user()->role->value;
+        if (!in_array($role, $roles)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are not authorized to access this resource.',

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\v1\Auth\RegisterController;
 use App\Http\Controllers\Api\v1\Auth\ResetPasswordController;
 use App\Http\Controllers\Api\v1\Auth\SendOtpController;
 use App\Http\Controllers\Api\v1\Auth\VerifyOtpController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\UserRole;
@@ -46,12 +47,29 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->middleware(['checkRole:' . UserRole::ADMIN->value])
             ->group(function () {
                 Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{User}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+                Route::patch('/{id}/restore', 'restore')->name('restore');
+                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+            });
+
+        Route::prefix('companies')->name('companies.')->controller(CompanyController::class)
+            ->middleware(['checkRole:' . UserRole::ADMIN->value])
+            ->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{Company}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+                Route::patch('/{id}/restore', 'restore')->name('restore');
+                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
             });
 
         Route::controller(ProfileController::class)->prefix('profile')->name('profile.')->group(function () {
             Route::get('/', 'show')->name('show');
-            // Route::patch('/', 'update')->name('update');
-            // Route::delete('/', 'destroy')->name('destroy');
+            Route::patch('/', 'update')->name('update');
         });
 
     });

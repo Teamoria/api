@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Controller;
 use App\Http\Requests\GoogleTokenLoginRequest;
 use App\Models\User;
 use App\UserStatus;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -31,7 +32,8 @@ class GoogleAuthController extends Controller
 
             [$user, $token] = DB::transaction(function () use ($googleUser): array {
                 $user = $this->findOrCreateUser($googleUser);
-
+                $user->last_login_at = Carbon::now();
+                $user->save();
                 return [$user, $user->createToken('api_token')->plainTextToken];
             });
 
@@ -108,7 +110,7 @@ class GoogleAuthController extends Controller
         $googleId = $googleUser->getId();
         $email = $googleUser->getEmail();
 
-        if (! is_string($googleId) || $googleId === '' || ! is_string($email) || $email === '') {
+        if (!is_string($googleId) || $googleId === '' || !is_string($email) || $email === '') {
             throw new RuntimeException('Google did not return a valid user identifier and email address.');
         }
 
@@ -123,14 +125,14 @@ class GoogleAuthController extends Controller
             ]
         );
 
-        if (! $user->google_id) {
+        if (!$user->google_id) {
             $user->google_id = $googleId;
             $user->status = UserStatus::ACTIVE->value;
-        } elseif (! hash_equals((string) $user->google_id, $googleId)) {
+        } elseif (!hash_equals((string) $user->google_id, $googleId)) {
             throw new RuntimeException('The Google account does not match the linked account.');
         }
 
-        if (! $user->email_verified_at) {
+        if (!$user->email_verified_at) {
             $user->email_verified_at = now();
         }
 

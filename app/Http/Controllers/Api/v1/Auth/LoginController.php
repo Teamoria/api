@@ -7,6 +7,7 @@ use App\Http\Requests\LoginRequest;
 use App\Models\User;
 use App\UserStatus;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -17,7 +18,7 @@ class LoginController extends Controller
         $validated = $request->validated();
         $user = User::query()->where('email', $validated['email'])->first();
 
-        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
             return $this->errorResponse(
                 message: 'Invalid credentials.',
                 code: Response::HTTP_UNAUTHORIZED,
@@ -25,7 +26,7 @@ class LoginController extends Controller
             );
         }
 
-        if (! $user->email_verified_at || $user->status === UserStatus::PENDING) {
+        if (!$user->email_verified_at || $user->status === UserStatus::PENDING) {
             return $this->errorResponse(
                 message: 'Your account is registered but your email address is not verified. Please verify your email before logging in.',
                 code: Response::HTTP_FORBIDDEN,
@@ -40,7 +41,8 @@ class LoginController extends Controller
                 errorCode: 'ACCOUNT_INACTIVE',
             );
         }
-
+        $user->last_login_at = Carbon::now();
+        $user->save();
         $token = $user->createToken('api_token');
 
         return $this->successResponse(
