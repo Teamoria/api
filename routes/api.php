@@ -48,10 +48,11 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
-                Route::put('/{user}', 'update')->name('update');
-                Route::delete('/{user}', 'destroy')->name('destroy');
-                Route::patch('/{user}/restore', 'restore')->name('restore');
-                Route::delete('/{user}/force-delete', 'forceDelete')->name('force-delete');
+                Route::get('/{User}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+                Route::patch('/{id}/restore', 'restore')->name('restore');
+                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
             });
 
         Route::prefix('companies')->name('companies.')->controller(CompanyController::class)
@@ -59,6 +60,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
+                Route::get('/{Company}', 'show')->name('show');
                 Route::put('/{id}', 'update')->name('update');
                 Route::delete('/{id}', 'destroy')->name('destroy');
                 Route::patch('/{id}/restore', 'restore')->name('restore');

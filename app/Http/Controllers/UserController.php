@@ -55,9 +55,10 @@ class UserController extends Controller
         );
     }
 
-    public function update(UpdateUserRequest $request, User $user)
+    public function update(UpdateUserRequest $request, string $id)
     {
         $validated = $request->validated();
+        $user = User::findOrFail($id);
         $user->update($validated->all());
 
         return $this->successResponse(
@@ -67,8 +68,9 @@ class UserController extends Controller
         );
     }
 
-    public function destroy(User $user)
+    public function destroy(string $id)
     {
+        $user = User::findOrFail($id);
         $user->delete();
 
         return $this->successResponse(
@@ -78,8 +80,9 @@ class UserController extends Controller
         );
     }
 
-    public function restore(User $user)
+    public function restore(string $id)
     {
+        $user = User::withTrashed()->findOrFail($id);
         $user->restore();
 
         return $this->successResponse(
@@ -89,8 +92,9 @@ class UserController extends Controller
         );
     }
 
-    public function forceDelete(User $user)
+    public function forceDelete(string $id)
     {
+        $user = User::withTrashed()->findOrFail($id);
         $user->forceDelete();
 
         return $this->successResponse(
