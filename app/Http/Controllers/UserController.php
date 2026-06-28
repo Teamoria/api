@@ -37,7 +37,7 @@ class UserController extends Controller
     public function store(StoreUserRequest $request)
     {
         $validated = $request->validated();
-        $user = User::create($validated->all());
+        $user = User::create($validated);
 
         return $this->successResponse(
             new UserResource($user),
@@ -59,7 +59,7 @@ class UserController extends Controller
     {
         $validated = $request->validated();
         $user = User::findOrFail($id);
-        $user->update($validated->all());
+        $user->update($validated);
 
         return $this->successResponse(
             new UserResource($user),
