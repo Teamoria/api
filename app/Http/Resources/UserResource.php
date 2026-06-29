@@ -11,7 +11,7 @@ class UserResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'company' => $this->whenLoaded('company', fn () => new CompanyResource($this->company)),
+            'company' => $this->whenLoaded('company', fn() => new CompanyResource($this->company)),
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
@@ -19,6 +19,7 @@ class UserResource extends JsonResource
             'status' => $this->status,
             'timezone' => $this->timezone,
             'last_login_at' => $this->last_login_at,
+            'is_email_verified' => $this->email_verified_at !== null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

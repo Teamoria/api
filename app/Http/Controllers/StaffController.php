@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Api\Controller;
 use App\Http\Requests\Staff\StoreStaffRequest;
 use App\Http\Requests\Staff\UpdateStaffRequest;
+use App\Http\Resources\CompanyResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -13,7 +14,7 @@ class StaffController extends Controller
 {
     public function index(Request $request)
     {
-        $q = User::with('company')->where('company_id', $request->user()->company_id);
+        $q = User::query()->where('company_id', $request->user()->company_id);
 
         if ($request->has('archived') && $request->archived == true) {
             $q->onlyTrashed();
@@ -30,6 +31,7 @@ class StaffController extends Controller
         return $this->successResponse(
             [
                 'users' => UserResource::collection($users),
+                'company' => new CompanyResource($request->user()->company),
                 'pagination' => [
                     'current_page' => $users->currentPage(),
                     'last_page' => $users->lastPage(),
@@ -57,9 +59,7 @@ class StaffController extends Controller
 
     public function show(Request $request, string $id)
     {
-        $user = User::with('company')
-            ->where('company_id', $request->user()->company_id)
-            ->findOrFail($id);
+        $user = User::where('company_id', $request->user()->company_id)->findOrFail($id);
 
         return $this->successResponse(
             new UserResource($user),
