@@ -4,14 +4,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('subscriptions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('plan_id')->constrained()->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('company_id')->constrained('companies')->cascadeOnDelete();
+            $table->foreignUuid('plan_id')->constrained('plans')->cascadeOnDelete();
             $table->string('status')->default('trialing');
             $table->timestamp('trial_ends_at')->nullable();
             $table->timestamp('starts_at')->nullable();

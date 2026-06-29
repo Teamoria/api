@@ -4,14 +4,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('payments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('subscription_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('subscription_id')->constrained('subscriptions')->cascadeOnDelete();
+            $table->foreignUuid('company_id')->constrained('companies')->cascadeOnDelete();
             $table->decimal('amount', 10, 2);
             $table->string('method')->default('bank_transfer');
             $table->string('status')->default('pending');

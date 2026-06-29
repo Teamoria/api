@@ -18,9 +18,7 @@ class DatabaseSeeder extends Seeder
     {
         $companies = Company::factory(10)->create();
 
-        User::factory(50)
-            ->recycle($companies)
-            ->create();
+        User::factory(50)->recycle($companies)->create();
 
         User::factory()->create([
             'name' => 'Test User',

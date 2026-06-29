@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class KnowledgeChunk extends Model
 {
+    use HasUuids;
+
     protected $fillable = ['project_id', 'upload_id', 'content', 'embedding', 'metadata'];
 
     protected function casts(): array
