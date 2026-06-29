@@ -3,20 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Api\Controller;
-use App\Http\Requests\User\StoreUserRequest;
-use App\Http\Requests\User\UpdateUserRequest;
+use App\Http\Requests\Staff\StoreStaffRequest;
+use App\Http\Requests\Staff\UpdateStaffRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 
-class UserController extends Controller
+class StaffController extends Controller
 {
     public function index(Request $request)
     {
-        $q = User::with('company');
+        $q = User::with('company')->where('company_id', $request->user()->company_id);
+
         if ($request->has('archived') && $request->archived == true) {
             $q->onlyTrashed();
         }
+        if ($request->has('roles') && count($request->roles)) {
+            $q->whereIn('role', $request->roles);
+        }
+        if ($request->has('statuses') && count($request->statuses)) {
+            $q->whereIn('status', $request->statuses);
+        }
+
         $users = $q->latest()->paginate(10)->withQueryString();
 
         return $this->successResponse(
@@ -34,9 +42,10 @@ class UserController extends Controller
         );
     }
 
-    public function store(StoreUserRequest $request)
+    public function store(StoreStaffRequest $request)
     {
         $validated = $request->validated();
+        $validated['company_id'] = $request->user()->company_id;
         $user = User::create($validated);
 
         return $this->successResponse(
@@ -46,8 +55,12 @@ class UserController extends Controller
         );
     }
 
-    public function show(User $user)
+    public function show(Request $request, string $id)
     {
+        $user = User::with('company')
+            ->where('company_id', $request->user()->company_id)
+            ->findOrFail($id);
+
         return $this->successResponse(
             new UserResource($user),
             'User fetched successfully.',
@@ -55,9 +68,10 @@ class UserController extends Controller
         );
     }
 
-    public function update(UpdateUserRequest $request, User $user)
+    public function update(UpdateStaffRequest $request, string $id)
     {
         $validated = $request->validated();
+        $user = User::where('company_id', $request->user()->company_id)->findOrFail($id);
         $user->update($validated);
 
         return $this->successResponse(
@@ -67,9 +81,9 @@ class UserController extends Controller
         );
     }
 
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
-        $user = User::findOrFail($id);
+        $user = User::where('company_id', $request->user()->company_id)->findOrFail($id);
         $user->delete();
 
         return $this->successResponse(
@@ -79,9 +93,11 @@ class UserController extends Controller
         );
     }
 
-    public function restore(string $id)
+    public function restore(Request $request, string $id)
     {
-        $user = User::withTrashed()->findOrFail($id);
+        $user = User::withTrashed()
+            ->where('company_id', $request->user()->company_id)
+            ->findOrFail($id);
         $user->restore();
 
         return $this->successResponse(
@@ -91,9 +107,11 @@ class UserController extends Controller
         );
     }
 
-    public function forceDelete(string $id)
+    public function forceDelete(Request $request, string $id)
     {
-        $user = User::withTrashed()->findOrFail($id);
+        $user = User::withTrashed()
+            ->where('company_id', $request->user()->company_id)
+            ->findOrFail($id);
         $user->forceDelete();
 
         return $this->successResponse(

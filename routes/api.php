@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\v1\Auth\SendOtpController;
 use App\Http\Controllers\Api\v1\Auth\VerifyOtpController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StaffController;
 use App\Http\Controllers\UserController;
 use App\UserRole;
 use Illuminate\Support\Facades\Route;
@@ -99,7 +100,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
                 Route::get('/{User}', 'show')->name('show');
-                Route::put('/{id}', 'update')->name('update');
+                Route::put('/{user}', 'update')->name('update');
                 Route::delete('/{id}', 'destroy')->name('destroy');
                 Route::patch('/{id}/restore', 'restore')->name('restore');
                 Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
@@ -119,6 +120,26 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
                 Route::get('/{Company}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+                Route::patch('/{id}/restore', 'restore')->name('restore');
+                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Company Owner — Staff Management (Managers & Members)
+        |------------------------------------------------------------------
+        */
+
+        Route::prefix('staff')
+            ->name('staff.')
+            ->middleware(['checkRole:'.UserRole::COMPANY_OWNER->value])
+            ->controller(StaffController::class)
+            ->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{id}', 'show')->name('show');
                 Route::put('/{id}', 'update')->name('update');
                 Route::delete('/{id}', 'destroy')->name('destroy');
                 Route::patch('/{id}/restore', 'restore')->name('restore');
