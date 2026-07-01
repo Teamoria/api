@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\v1\Auth\SendOtpController;
 use App\Http\Controllers\Api\v1\Auth\VerifyOtpController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\UserController;
 use App\UserRole;
@@ -158,6 +159,29 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->group(function () {
                 Route::get('/', 'show')->name('show');
                 Route::patch('/', 'update')->name('update');
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Project Management
+        |------------------------------------------------------------------
+        */
+
+        Route::prefix('projects')
+            ->name('projects.')
+            ->controller(ProjectController::class)
+            ->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{id}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+                Route::patch('/{id}/restore', 'restore')->name('restore');
+                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+
+                // Member management
+                Route::post('/{id}/members', 'addMembers')->name('members.add');
+                Route::delete('/{id}/members/{userId}', 'removeMember')->name('members.remove');
             });
     });
 });
