@@ -1,7 +1,7 @@
 <?php
 
-use App\UserRole;
-use App\UserStatus;
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,9 +12,10 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('company_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignUuid('company_id')->nullable()->constrained('companies')->cascadeOnDelete();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('google_id')->nullable()->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('phone')->nullable()->unique();
             $table->timestamp('phone_verified_at')->nullable();

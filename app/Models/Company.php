@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\CompanyStatus;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Company extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -19,6 +21,13 @@ class Company extends Model
         'logo_path',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'status' => CompanyStatus::class,
+        ];
+    }
 
     public function users(): HasMany
     {

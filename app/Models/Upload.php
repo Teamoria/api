@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\UploadStatus;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Upload extends Model
 {
+    use HasUuids;
+
     protected $fillable = [
         'project_id',
         'user_id',
@@ -18,6 +22,14 @@ class Upload extends Model
         'file_size',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'file_size' => 'integer',
+            'status' => UploadStatus::class,
+        ];
+    }
 
     public function project(): BelongsTo
     {

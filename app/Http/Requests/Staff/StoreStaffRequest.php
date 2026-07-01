@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Staff;
 
-use App\UserRole;
-use App\UserStatus;
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,8 +15,14 @@ class StoreStaffRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
-            'role' => ['required', Rule::in([UserRole::COMPANY_MANAGER, UserRole::COMPANY_MEMBER])],
-            'status' => ['required', Rule::in(UserStatus::cases())],
+            'role' => [
+                'required',
+                Rule::enum(UserRole::class)->only([
+                    UserRole::COMPANY_MANAGER,
+                    UserRole::COMPANY_MEMBER,
+                ]),
+            ],
+            'status' => ['required', Rule::enum(UserStatus::class)],
         ];
     }
 }

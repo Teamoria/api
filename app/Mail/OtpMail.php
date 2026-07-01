@@ -11,16 +11,11 @@ class OtpMail extends Mailable
 {
     use Queueable;
 
-    public string $code;
-
-    public string $type;
-
-    public function __construct(string $code, string $type, string $subject = 'Verification Code')
-    {
-        $this->code = $code;
-        $this->subject = $subject;
-        $this->type = $type;
-    }
+    public function __construct(
+        public string $code,
+        public string $type,
+        public string $subject = 'Verification Code',
+    ) {}
 
     public function envelope(): Envelope
     {

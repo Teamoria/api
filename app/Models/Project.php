@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ProjectStatus;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Project extends Model
 {
-    use SoftDeletes;
+    use HasUuids, SoftDeletes;
 
     protected $fillable = [
         'company_id',
@@ -25,6 +27,8 @@ class Project extends Model
     protected function casts(): array
     {
         return [
+            'status' => ProjectStatus::class,
+            'progress' => 'integer',
             'start_date' => 'date',
             'end_date' => 'date',
         ];

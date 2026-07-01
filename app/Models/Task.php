@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\TaskPriority;
+use App\Enums\TaskStatus;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -10,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Task extends Model
 {
-    use SoftDeletes;
+    use HasUuids, SoftDeletes;
 
     protected $fillable = [
         'project_id',
@@ -24,6 +27,8 @@ class Task extends Model
     protected function casts(): array
     {
         return [
+            'status' => TaskStatus::class,
+            'priority' => TaskPriority::class,
             'due_date' => 'date',
         ];
     }

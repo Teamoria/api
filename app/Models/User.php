@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\UserRole;
-use App\UserStatus;
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
