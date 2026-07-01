@@ -1,18 +1,18 @@
 <?php
 
-use App\Http\Controllers\Api\v1\Auth\GoogleAuthController;
-use App\Http\Controllers\Api\v1\Auth\LoginController;
-use App\Http\Controllers\Api\v1\Auth\LogoutController;
-use App\Http\Controllers\Api\v1\Auth\RegisterController;
-use App\Http\Controllers\Api\v1\Auth\ResetPasswordController;
-use App\Http\Controllers\Api\v1\Auth\SendOtpController;
-use App\Http\Controllers\Api\v1\Auth\VerifyOtpController;
-use App\Http\Controllers\CompanyController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\StaffController;
-use App\Http\Controllers\UserController;
-use App\UserRole;
+use App\Enums\UserRole;
+use App\Http\Controllers\Api\V1\Auth\GoogleAuthController;
+use App\Http\Controllers\Api\V1\Auth\LoginController;
+use App\Http\Controllers\Api\V1\Auth\LogoutController;
+use App\Http\Controllers\Api\V1\Auth\RegisterController;
+use App\Http\Controllers\Api\V1\Auth\ResetPasswordController;
+use App\Http\Controllers\Api\V1\Auth\SendOtpController;
+use App\Http\Controllers\Api\V1\Auth\VerifyOtpController;
+use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -96,11 +96,11 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
         Route::prefix('users')
             ->name('users.')
             ->controller(UserController::class)
-            ->middleware(['checkRole:'.UserRole::ADMIN->value])
+            ->middleware(['role:'.UserRole::ADMIN->value])
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
-                Route::get('/{User}', 'show')->name('show');
+                Route::get('/{user}', 'show')->name('show');
                 Route::put('/{user}', 'update')->name('update');
                 Route::delete('/{id}', 'destroy')->name('destroy');
                 Route::patch('/{id}/restore', 'restore')->name('restore');
@@ -116,11 +116,11 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
         Route::prefix('companies')
             ->name('companies.')
             ->controller(CompanyController::class)
-            ->middleware(['checkRole:'.UserRole::ADMIN->value])
+            ->middleware(['role:'.UserRole::ADMIN->value])
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
-                Route::get('/{Company}', 'show')->name('show');
+                Route::get('/{company}', 'show')->name('show');
                 Route::put('/{id}', 'update')->name('update');
                 Route::delete('/{id}', 'destroy')->name('destroy');
                 Route::patch('/{id}/restore', 'restore')->name('restore');
@@ -135,7 +135,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
         Route::prefix('staff')
             ->name('staff.')
-            ->middleware(['checkRole:'.UserRole::COMPANY_OWNER->value])
+            ->middleware(['role:'.UserRole::COMPANY_OWNER->value])
             ->controller(StaffController::class)
             ->group(function () {
                 Route::get('/', 'index')->name('index');

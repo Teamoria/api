@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Project;
 
-use App\ProjectStatus;
+use App\Enums\ProjectStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -13,10 +13,10 @@ class StoreProjectRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
-            'status' => ['required', 'string', Rule::in(ProjectStatus::cases())],
+            'status' => ['required', Rule::enum(ProjectStatus::class)],
             'progress' => ['required', 'integer', 'min:0', 'max:100'],
             'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
         ];
     }
 }

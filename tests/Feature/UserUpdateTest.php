@@ -1,8 +1,8 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\Company;
 use App\Models\User;
-use App\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 

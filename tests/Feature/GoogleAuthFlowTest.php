@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\v1\Auth\GoogleAuthController;
+use App\Enums\UserStatus;
+use App\Http\Controllers\Api\V1\Auth\GoogleAuthController;
 use App\Models\User;
-use App\UserStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Laravel\Socialite\Facades\Socialite;
