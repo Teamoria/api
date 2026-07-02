@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Company;
 
-use App\CompanyStatus;
+use App\Enums\CompanyStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,7 +16,7 @@ class StoreCompanyRequest extends FormRequest
             'website' => ['nullable', 'url'],
             'address' => ['nullable', 'string'],
             'logo_path' => ['nullable', 'string'],
-            'status' => ['nullable', 'string', Rule::in(CompanyStatus::cases())],
+            'status' => ['nullable', Rule::enum(CompanyStatus::class)],
         ];
     }
 }

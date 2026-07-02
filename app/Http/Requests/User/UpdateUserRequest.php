@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\User;
 
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use App\Models\User;
-use App\UserRole;
-use App\UserStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,9 +16,9 @@ class UpdateUserRequest extends FormRequest
             'name' => ['sometimes', 'string'],
             'email' => ['sometimes', 'string', 'email', Rule::unique('users', 'email')->ignore($this->userBeingUpdated())],
             'password' => ['sometimes', 'string', 'confirmed', 'min:8'],
-            'role' => ['sometimes', 'string', Rule::in(UserRole::cases())],
+            'role' => ['sometimes', Rule::enum(UserRole::class)],
             'phone' => ['sometimes', 'string'],
-            'status' => ['sometimes', 'string', Rule::in(UserStatus::cases())],
+            'status' => ['sometimes', Rule::enum(UserStatus::class)],
             'timezone' => ['sometimes', 'string'],
             'company_id' => ['sometimes', 'string', Rule::exists('companies', 'id')],
         ];
@@ -26,6 +26,8 @@ class UpdateUserRequest extends FormRequest
 
     private function userBeingUpdated(): User
     {
-        return $this->route('user') ?? $this->user();
+        $id = $this->route('id');
+
+        return $id ? User::findOrFail($id) : $this->user();
     }
 }

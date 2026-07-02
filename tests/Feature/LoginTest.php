@@ -1,7 +1,7 @@
 <?php
 
+use App\Enums\UserStatus;
 use App\Models\User;
-use App\UserStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 

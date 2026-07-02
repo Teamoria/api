@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\User;
 
-use App\UserRole;
-use App\UserStatus;
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,15 +15,15 @@ class StoreUserRequest extends FormRequest
             'name' => ['required', 'string'],
             'email' => ['required', 'string', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'confirmed', 'min:8'],
-            'role' => ['required', 'string', Rule::in(UserRole::cases())],
+            'role' => ['required', Rule::enum(UserRole::class)],
             'phone' => ['nullable', 'string'],
-            'status' => ['nullable', 'string', Rule::in(UserStatus::cases())],
+            'status' => ['nullable', Rule::enum(UserStatus::class)],
             'timezone' => ['nullable', 'string'],
             'company_id' => ['required', 'string', 'exists:companies,id'],
         ];
     }
 
-    public function messages()
+    public function messages(): array
     {
         return [
             'name.required' => 'Name is required.',
