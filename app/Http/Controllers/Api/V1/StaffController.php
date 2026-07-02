@@ -15,7 +15,7 @@ class StaffController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $usersQuery = User::query()->whereBelongsTo($request->user()->company);
+        $usersQuery = User::whereBelongsTo($request->user()->company);
 
         if ($request->boolean('archived')) {
             $usersQuery->onlyTrashed();

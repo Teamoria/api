@@ -5,8 +5,12 @@ namespace App\Http\Controllers\Api\V1\Auth;
 use App\Enums\OtpType;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Api\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Company\StoreCompanyRequest;
+use App\Http\Resources\CompanyResource;
+use App\Models\Company;
 use App\Models\User;
 use App\Services\Auth\OtpService;
 use Illuminate\Http\JsonResponse;
@@ -61,5 +65,29 @@ class RegisterController extends Controller
                 Response::HTTP_INTERNAL_SERVER_ERROR,
             );
         }
+    }
+
+    public function registerCompany(StoreCompanyRequest $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->company_id !== null) {
+            throw ApiException::conflict('You have already created a company.');
+        }
+
+        $company = DB::transaction(function () use ($request, $user): Company {
+            $company = Company::create($request->validated());
+
+            $user->company()->associate($company);
+            $user->save();
+
+            return $company;
+        });
+
+        return $this->successResponse(
+            new CompanyResource($company),
+            'Company created successfully.',
+            Response::HTTP_CREATED
+        );
     }
 }

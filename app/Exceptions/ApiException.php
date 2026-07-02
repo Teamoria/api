@@ -41,6 +41,15 @@ class ApiException extends Exception
         );
     }
 
+    public static function unauthenticated(string $message = 'Unauthorized.'): static
+    {
+        return new static(
+            message: $message,
+            httpCode: 401,
+            internalCode: self::UNAUTHENTICATED,
+        );
+    }
+
     public static function notFound(string $resource = 'Resource'): static
     {
         return new static(
