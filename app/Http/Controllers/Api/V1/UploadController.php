@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\FileCategory;
+use App\Enums\UploadStatus;
 use App\Http\Controllers\Api\Controller;
 use App\Http\Requests\Upload\UploadRequest;
 use App\Models\Upload;
@@ -17,8 +18,10 @@ class UploadController extends Controller
 
     public function upload(UploadRequest $request): JsonResponse
     {
+        $projectId = $request->validated('project_id');
+        $userId = (string) $request->user()->getAuthIdentifier();
         $files = array_map(
-            fn(UploadedFile $file): array => $this->storeFile($file),
+            fn (UploadedFile $file): array => $this->storeFile($file, $projectId, $userId),
             $request->validated('files'),
         );
 
@@ -34,13 +37,12 @@ class UploadController extends Controller
     /**
      * @return array{path: string, url: string, category: string}
      */
-    private function storeFile(UploadedFile $file): array
+    private function storeFile(UploadedFile $file, string $projectId, string $userId): array
     {
-        $category = FileCategory::fromMimeType(
-            $file->getMimeType() ?? 'application/octet-stream',
-        );
+        $mimeType = $file->getMimeType() ?? 'application/octet-stream';
+        $category = FileCategory::fromMimeType($mimeType);
         $path = $file->storeAs(
-            self::UPLOADS_DIRECTORY . '/' . $this->directoryFor($category),
+            self::UPLOADS_DIRECTORY.'/'.$this->directoryFor($category),
             $this->uniqueFileName($file),
             'public',
         );
@@ -48,6 +50,18 @@ class UploadController extends Controller
         if ($path === false) {
             abort(500, 'File upload failed.');
         }
+
+        Upload::create([
+            'project_id' => $projectId,
+            'user_id' => $userId,
+            'file_path' => $path,
+            'file_name' => $file->getClientOriginalName(),
+            'file_type' => $mimeType,
+            'category' => $category,
+            'file_size' => $file->getSize() ?: 0,
+            'status' => UploadStatus::SUCCESS,
+            'upload_date' => now(),
+        ]);
 
         return [
             'path' => $path,
@@ -67,7 +81,7 @@ class UploadController extends Controller
         $safeName = $originalName !== '' ? $originalName : 'file';
         $extension = $file->extension();
 
-        return $safeName . '-' . Str::ulid() . ($extension ? '.' . $extension : '');
+        return $safeName.'-'.Str::ulid().($extension ? '.'.$extension : '');
     }
 
     private function directoryFor(FileCategory $category): string
@@ -80,28 +94,33 @@ class UploadController extends Controller
         };
     }
 
-
     public function listUploadedFiles(string $projectId): JsonResponse
     {
-        $files = Upload::where('project_id', $projectId)->get()->groupBy('category');
+        $files = Upload::query()
+            ->where('project_id', $projectId)
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
         return $this->successResponse(
             [
-                'files' => $files,
+                'files' => $files->items(),
                 'pagination' => $this->pagination($files),
             ],
             'Files listed successfully.'
         );
     }
 
-
-    public function index()
+    public function index(): JsonResponse
     {
-        $files = Upload::paginate(10)->groupBy('category');
+        $files = Upload::query()
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
         return $this->successResponse(
             [
-                'files' => $files,
+                'files' => $files->items(),
                 'pagination' => $this->pagination($files),
             ],
             'Files listed successfully.'
