@@ -1,31 +1,34 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\FileCategory;
+use App\Http\Controllers\Api\Controller;
 use App\Http\Requests\Upload\UploadRequest;
+use App\Models\Upload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class UploadController
+class UploadController extends Controller
 {
     private const string UPLOADS_DIRECTORY = 'uploads';
 
     public function upload(UploadRequest $request): JsonResponse
     {
         $files = array_map(
-            fn (UploadedFile $file): array => $this->storeFile($file),
+            fn(UploadedFile $file): array => $this->storeFile($file),
             $request->validated('files'),
         );
 
-        return response()->json([
-            'message' => 'Files uploaded successfully.',
-            'data' => [
+        return $this->successResponse(
+            [
                 'files' => $files,
             ],
-        ], 201);
+            'Files uploaded successfully.',
+            201
+        );
     }
 
     /**
@@ -37,7 +40,7 @@ class UploadController
             $file->getMimeType() ?? 'application/octet-stream',
         );
         $path = $file->storeAs(
-            self::UPLOADS_DIRECTORY.'/'.$this->directoryFor($category),
+            self::UPLOADS_DIRECTORY . '/' . $this->directoryFor($category),
             $this->uniqueFileName($file),
             'public',
         );
@@ -64,7 +67,7 @@ class UploadController
         $safeName = $originalName !== '' ? $originalName : 'file';
         $extension = $file->extension();
 
-        return $safeName.'-'.Str::ulid().($extension ? '.'.$extension : '');
+        return $safeName . '-' . Str::ulid() . ($extension ? '.' . $extension : '');
     }
 
     private function directoryFor(FileCategory $category): string
@@ -75,5 +78,33 @@ class UploadController
             FileCategory::AUDIO => 'audio',
             FileCategory::DOCUMENT => 'documents',
         };
+    }
+
+
+    public function listUploadedFiles(string $projectId): JsonResponse
+    {
+        $files = Upload::where('project_id', $projectId)->get()->groupBy('category');
+
+        return $this->successResponse(
+            [
+                'files' => $files,
+                'pagination' => $this->pagination($files),
+            ],
+            'Files listed successfully.'
+        );
+    }
+
+
+    public function index()
+    {
+        $files = Upload::paginate(10)->groupBy('category');
+
+        return $this->successResponse(
+            [
+                'files' => $files,
+                'pagination' => $this->pagination($files),
+            ],
+            'Files listed successfully.'
+        );
     }
 }

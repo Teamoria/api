@@ -51,6 +51,7 @@ class UploadRequest extends FormRequest
         'xps',
         'yaml',
         'yml',
+        'txt',
     ];
 
     private const array MEDIA_MIME_TYPES = [

@@ -14,8 +14,10 @@ class OtpMail extends Mailable
     public function __construct(
         public string $code,
         public string $type,
-        public string $subject = 'Verification Code',
-    ) {}
+        string $subject = 'Verification Code',
+    ) {
+        $this->subject = $subject;
+    }
 
     public function envelope(): Envelope
     {
