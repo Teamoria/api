@@ -21,7 +21,7 @@ class RegisterController extends Controller
         try {
             $validated = $request->validated();
 
-            $code = DB::transaction(function () use ($otpService, $validated): string|false {
+            $code = DB::transaction(function () use ($otpService, $validated): string {
                 User::create([
                     'name' => $validated['name'],
                     'email' => $validated['email'],
@@ -30,7 +30,13 @@ class RegisterController extends Controller
                     'status' => UserStatus::PENDING->value,
                 ]);
 
-                return $otpService->generate($validated['email'], OtpType::Register);
+                $code = $otpService->generate($validated['email'], OtpType::Register);
+
+                if ($code === false) {
+                    throw new \RuntimeException('Failed to send verification code.');
+                }
+
+                return $code;
             });
 
             $data = [
@@ -51,9 +57,8 @@ class RegisterController extends Controller
             report($exception);
 
             return $this->errorResponse(
-                'Failed to register user',
+                'Failed to register user.',
                 Response::HTTP_INTERNAL_SERVER_ERROR,
-                ['error' => $exception->getMessage()]
             );
         }
     }

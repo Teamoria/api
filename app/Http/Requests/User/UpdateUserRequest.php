@@ -26,6 +26,8 @@ class UpdateUserRequest extends FormRequest
 
     private function userBeingUpdated(): User
     {
-        return $this->route('user') ?? $this->user();
+        $id = $this->route('id');
+
+        return $id ? User::findOrFail($id) : $this->user();
     }
 }

@@ -63,7 +63,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
         // Authenticated auth routes
         Route::middleware('auth:sanctum')->group(function () {
-            Route::get('logout', LogoutController::class)->name('logout');
+            Route::post('logout', LogoutController::class)->name('logout');
             Route::post('reset-password', ResetPasswordController::class)->name('reset_password');
         });
     });
@@ -100,8 +100,8 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
-                Route::get('/{user}', 'show')->name('show');
-                Route::put('/{user}', 'update')->name('update');
+                Route::get('/{id}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
                 Route::delete('/{id}', 'destroy')->name('destroy');
                 Route::patch('/{id}/restore', 'restore')->name('restore');
                 Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
@@ -120,7 +120,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
-                Route::get('/{company}', 'show')->name('show');
+                Route::get('/{id}', 'show')->name('show');
                 Route::put('/{id}', 'update')->name('update');
                 Route::delete('/{id}', 'destroy')->name('destroy');
                 Route::patch('/{id}/restore', 'restore')->name('restore');

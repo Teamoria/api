@@ -42,8 +42,10 @@ class CompanyController extends Controller
         );
     }
 
-    public function show(Company $company): JsonResponse
+    public function show(string $id): JsonResponse
     {
+        $company = Company::findOrFail($id);
+
         return $this->successResponse(
             new CompanyResource($company),
             'Company fetched successfully.',
@@ -83,7 +85,7 @@ class CompanyController extends Controller
         return $this->successResponse(
             new CompanyResource($company),
             'Company restored successfully.',
-            201
+            200
         );
     }
 

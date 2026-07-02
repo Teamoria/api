@@ -11,8 +11,7 @@ class RegisterRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email:rfc', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:6', 'max:255'],
-            'confirm_password' => ['required', 'string', 'same:password'],
+            'password' => ['required', 'string', 'min:8', 'max:255', 'confirmed'],
         ];
     }
 
@@ -30,12 +29,9 @@ class RegisterRequest extends FormRequest
 
             'password.required' => 'Password is required.',
             'password.string' => 'Password must be a string.',
-            'password.min' => 'Password must be at least 6 characters.',
+            'password.min' => 'Password must be at least 8 characters.',
             'password.max' => 'Password must be at most 255 characters.',
-
-            'confirm_password.required' => 'Confirm password is required.',
-            'confirm_password.string' => 'Confirm password must be a string.',
-            'confirm_password.same' => 'Confirm password must be same as password.',
+            'password.confirmed' => 'Password confirmation does not match.',
         ];
     }
 }

@@ -13,11 +13,14 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class ProjectController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->ensureHasCompany($request);
+
         $projectsQuery = Project::query()
             ->whereBelongsTo($request->user()->company)
             ->with(['users', 'company']);
@@ -98,6 +101,8 @@ class ProjectController extends Controller
 
     public function restore(Request $request, string $id): JsonResponse
     {
+        $this->ensureHasCompany($request);
+
         $project = Project::onlyTrashed()
             ->whereBelongsTo($request->user()->company)
             ->findOrFail($id);
@@ -114,6 +119,8 @@ class ProjectController extends Controller
 
     public function forceDelete(Request $request, string $id): JsonResponse
     {
+        $this->ensureHasCompany($request);
+
         $project = Project::withTrashed()
             ->whereBelongsTo($request->user()->company)
             ->findOrFail($id);
@@ -172,9 +179,18 @@ class ProjectController extends Controller
 
     private function companyProject(Request $request, string $id): Project
     {
+        $this->ensureHasCompany($request);
+
         return Project::query()
             ->whereBelongsTo($request->user()->company)
             ->findOrFail($id);
+    }
+
+    private function ensureHasCompany(Request $request): void
+    {
+        if (! $request->user()->company) {
+            throw new AccessDeniedHttpException('You are not associated with any company.');
+        }
     }
 
     private function ensureManager(User $user, Project $project): void

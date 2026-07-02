@@ -42,8 +42,10 @@ class UserController extends Controller
         );
     }
 
-    public function show(User $user): JsonResponse
+    public function show(string $id): JsonResponse
     {
+        $user = User::findOrFail($id);
+
         return $this->successResponse(
             new UserResource($user),
             'User fetched successfully.',
@@ -51,8 +53,9 @@ class UserController extends Controller
         );
     }
 
-    public function update(UpdateUserRequest $request, User $user): JsonResponse
+    public function update(UpdateUserRequest $request, string $id): JsonResponse
     {
+        $user = User::findOrFail($id);
         $user->update($request->validated());
 
         return $this->successResponse(
