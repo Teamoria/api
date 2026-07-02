@@ -26,7 +26,7 @@ Route::get('/health', function () {
         'success' => true,
         'message' => 'API is healthy.',
         'data' => [
-            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2).' ms',
+            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2) . ' ms',
         ],
     ]);
 })->name('api.health');
@@ -96,7 +96,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
         Route::prefix('users')
             ->name('users.')
             ->controller(UserController::class)
-            ->middleware(['role:'.UserRole::ADMIN->value])
+            ->middleware(['role:' . UserRole::ADMIN->value])
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
@@ -116,7 +116,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
         Route::prefix('companies')
             ->name('companies.')
             ->controller(CompanyController::class)
-            ->middleware(['role:'.UserRole::ADMIN->value])
+            ->middleware(['role:' . UserRole::ADMIN->value])
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
@@ -135,7 +135,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
         Route::prefix('staff')
             ->name('staff.')
-            ->middleware(['role:'.UserRole::COMPANY_OWNER->value])
+            ->middleware(['role:' . UserRole::COMPANY_OWNER->value])
             ->controller(StaffController::class)
             ->group(function () {
                 Route::get('/', 'index')->name('index');
@@ -169,6 +169,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
         Route::prefix('projects')
             ->name('projects.')
+            ->middleware('check-company')
             ->controller(ProjectController::class)
             ->group(function () {
                 Route::get('/', 'index')->name('index');
