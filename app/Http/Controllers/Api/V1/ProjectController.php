@@ -11,16 +11,16 @@ use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProjectController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-
-        $projectsQuery = Project::query()
-            ->whereBelongsTo($request->user()->company)
+        $projectsQuery = $this->projectsQuery($request->user())
             ->with(['users', 'company']);
 
         if ($request->boolean('archived')) {
@@ -40,7 +40,9 @@ class ProjectController extends Controller
 
     public function store(StoreProjectRequest $request): JsonResponse
     {
-        if ($request->user()->role === UserRole::COMPANY_MEMBER) {
+        $user = $request->user();
+
+        if ($user->role === UserRole::COMPANY_MEMBER) {
             return $this->errorResponse(
                 'You are not authorized to create a project.',
                 403
@@ -48,8 +50,22 @@ class ProjectController extends Controller
         }
 
         $validated = $request->validated();
-        $validated['company_id'] = $request->user()->company_id;
-        $project = Project::create($validated);
+
+        if ($user->role !== UserRole::ADMIN) {
+            $validated['company_id'] = $user->company_id;
+        }
+
+        $project = DB::transaction(function () use ($user, $validated): Project {
+            $project = Project::create($validated);
+
+            if ($user->role !== UserRole::ADMIN) {
+                $project->users()->attach($user, [
+                    'role' => ProjectRole::MANAGER->value,
+                ]);
+            }
+
+            return $project->load(['users', 'company']);
+        });
 
         return $this->successResponse(
             new ProjectResource($project),
@@ -60,7 +76,7 @@ class ProjectController extends Controller
 
     public function show(Request $request, string $id): JsonResponse
     {
-        $project = $this->companyProject($request, $id)
+        $project = $this->accessibleProject($request, $id)
             ->load(['users', 'company']);
 
         return $this->successResponse(
@@ -72,7 +88,7 @@ class ProjectController extends Controller
 
     public function update(UpdateProjectRequest $request, string $id): JsonResponse
     {
-        $project = $this->companyProject($request, $id);
+        $project = $this->accessibleProject($request, $id);
 
         $this->ensureManager($request->user(), $project);
         $project->update($request->validated());
@@ -86,7 +102,7 @@ class ProjectController extends Controller
 
     public function destroy(Request $request, string $id): JsonResponse
     {
-        $project = $this->companyProject($request, $id);
+        $project = $this->accessibleProject($request, $id);
         $this->ensureManager($request->user(), $project);
         $project->delete();
 
@@ -99,9 +115,8 @@ class ProjectController extends Controller
 
     public function restore(Request $request, string $id): JsonResponse
     {
-
-        $project = Project::onlyTrashed()
-            ->whereBelongsTo($request->user()->company)
+        $project = $this->projectsQuery($request->user())
+            ->onlyTrashed()
             ->findOrFail($id);
 
         $this->ensureManager($request->user(), $project);
@@ -116,9 +131,8 @@ class ProjectController extends Controller
 
     public function forceDelete(Request $request, string $id): JsonResponse
     {
-
-        $project = Project::withTrashed()
-            ->whereBelongsTo($request->user()->company)
+        $project = $this->projectsQuery($request->user())
+            ->withTrashed()
             ->findOrFail($id);
 
         $this->ensureManager($request->user(), $project);
@@ -133,13 +147,13 @@ class ProjectController extends Controller
 
     public function addMembers(AddProjectMembersRequest $request, string $id): JsonResponse
     {
-        $project = $this->companyProject($request, $id);
+        $project = $this->accessibleProject($request, $id);
         $this->ensureManager($request->user(), $project);
 
         $role = $request->validated('role', ProjectRole::MEMBER->value);
 
         $syncData = collect($request->validated('user_ids'))
-            ->mapWithKeys(fn(string $userId) => [$userId => ['role' => $role]])
+            ->mapWithKeys(fn (string $userId) => [$userId => ['role' => $role]])
             ->all();
 
         $project->users()->syncWithoutDetaching($syncData);
@@ -154,7 +168,7 @@ class ProjectController extends Controller
 
     public function removeMember(Request $request, string $id, string $userId): JsonResponse
     {
-        $project = $this->companyProject($request, $id);
+        $project = $this->accessibleProject($request, $id);
         $this->ensureManager($request->user(), $project);
 
         abort_unless(
@@ -173,17 +187,31 @@ class ProjectController extends Controller
         );
     }
 
-    private function companyProject(Request $request, string $id): Project
+    /**
+     * @return Builder<Project>
+     */
+    private function projectsQuery(User $user): Builder
     {
+        $projectsQuery = Project::query();
 
-        return Project::query()
-            ->whereBelongsTo($request->user()->company)
-            ->findOrFail($id);
+        if ($user->role !== UserRole::ADMIN) {
+            $projectsQuery->whereBelongsTo($user->company);
+        }
+
+        return $projectsQuery;
     }
 
+    private function accessibleProject(Request $request, string $id): Project
+    {
+        return $this->projectsQuery($request->user())->findOrFail($id);
+    }
 
     private function ensureManager(User $user, Project $project): void
     {
+        if ($user->role === UserRole::ADMIN) {
+            return;
+        }
+
         $projectMember = $project->users()->find($user->id);
 
         abort_unless(

@@ -79,118 +79,98 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
         Route::post('verify', VerifyOtpController::class)->middleware('throttle:5,1')->name('verify');
     });
 
-    /*
-    |----------------------------------------------------------------------
-    | Authenticated User — Company Management
-    |----------------------------------------------------------------------
-    */
-    Route::post('register-company', [RegisterController::class, 'registerCompany'])
-        ->middleware(['auth:sanctum', 'role:'.UserRole::COMPANY_OWNER->value])
-        ->name('companies.register');
-
-    /*
-    |----------------------------------------------------------------------
-    | Authenticated Routes
-    |----------------------------------------------------------------------
-    */
-
-    Route::middleware(['auth:sanctum', 'check-company'])->group(function () {
-
+    Route::middleware('auth:sanctum')->group(function () {
         /*
         |------------------------------------------------------------------
-        | Admin — User Management
+        | Platform Administration
         |------------------------------------------------------------------
         */
 
-        Route::prefix('users')
-            ->name('users.')
-            ->controller(UserController::class)
-            ->middleware(['role:'.UserRole::ADMIN->value])
+        Route::prefix('admin')
+            ->name('admin.')
+            ->middleware('role:'.UserRole::ADMIN->value)
             ->group(function () {
-                Route::get('/', 'index')->name('index');
-                Route::post('/', 'store')->name('store');
-                Route::get('/{id}', 'show')->name('show');
-                Route::put('/{id}', 'update')->name('update');
-                Route::delete('/{id}', 'destroy')->name('destroy');
-                Route::patch('/{id}/restore', 'restore')->name('restore');
-                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                Route::prefix('users')->name('users.')->controller(UserController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{id}', 'show')->name('show');
+                    Route::put('/{id}', 'update')->name('update');
+                    Route::delete('/{id}', 'destroy')->name('destroy');
+                    Route::patch('/{id}/restore', 'restore')->name('restore');
+                    Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                });
+
+                Route::prefix('companies')->name('companies.')->controller(CompanyController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{id}', 'show')->name('show');
+                    Route::put('/{id}', 'update')->name('update');
+                    Route::delete('/{id}', 'destroy')->name('destroy');
+                    Route::patch('/{id}/restore', 'restore')->name('restore');
+                    Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                });
+
+                Route::prefix('projects')->name('projects.')->controller(ProjectController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{id}', 'show')->name('show');
+                    Route::put('/{id}', 'update')->name('update');
+                    Route::delete('/{id}', 'destroy')->name('destroy');
+                    Route::patch('/{id}/restore', 'restore')->name('restore');
+                    Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                    Route::post('/{id}/members', 'addMembers')->name('members.add');
+                    Route::delete('/{id}/members/{userId}', 'removeMember')->name('members.remove');
+                });
+
+                Route::prefix('profile')->name('profile.')->controller(ProfileController::class)->group(function () {
+                    Route::get('/', 'show')->name('show');
+                    Route::patch('/', 'update')->name('update');
+                });
             });
 
         /*
         |------------------------------------------------------------------
-        | Admin — Company Management
+        | Company Workspace
         |------------------------------------------------------------------
         */
 
-        Route::prefix('companies')
-            ->name('companies.')
-            ->controller(CompanyController::class)
-            ->middleware(['role:'.UserRole::ADMIN->value])
-            ->group(function () {
-                Route::get('/', 'index')->name('index');
-                Route::post('/', 'store')->name('store');
-                Route::get('/{id}', 'show')->name('show');
-                Route::put('/{id}', 'update')->name('update');
-                Route::delete('/{id}', 'destroy')->name('destroy');
-                Route::patch('/{id}/restore', 'restore')->name('restore');
-                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+        Route::prefix('company')->name('company.')->group(function () {
+            Route::post('register', [RegisterController::class, 'registerCompany'])
+                ->middleware('role:'.UserRole::COMPANY_OWNER->value)
+                ->name('register');
+
+            Route::middleware('check-company')->group(function () {
+                Route::prefix('staff')
+                    ->name('staff.')
+                    ->middleware('role:'.UserRole::COMPANY_OWNER->value)
+                    ->controller(StaffController::class)
+                    ->group(function () {
+                        Route::get('/', 'index')->name('index');
+                        Route::post('/', 'store')->name('store');
+                        Route::get('/{id}', 'show')->name('show');
+                        Route::put('/{id}', 'update')->name('update');
+                        Route::delete('/{id}', 'destroy')->name('destroy');
+                        Route::patch('/{id}/restore', 'restore')->name('restore');
+                        Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                    });
+
+                Route::prefix('projects')->name('projects.')->controller(ProjectController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{id}', 'show')->name('show');
+                    Route::put('/{id}', 'update')->name('update');
+                    Route::delete('/{id}', 'destroy')->name('destroy');
+                    Route::patch('/{id}/restore', 'restore')->name('restore');
+                    Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                    Route::post('/{id}/members', 'addMembers')->name('members.add');
+                    Route::delete('/{id}/members/{userId}', 'removeMember')->name('members.remove');
+                });
+
+                Route::prefix('profile')->name('profile.')->controller(ProfileController::class)->group(function () {
+                    Route::get('/', 'show')->name('show');
+                    Route::patch('/', 'update')->name('update');
+                });
             });
-
-        /*
-        |------------------------------------------------------------------
-        | Company Owner — Staff Management (Managers & Members)
-        |------------------------------------------------------------------
-        */
-
-        Route::prefix('staff')
-            ->name('staff.')
-            ->middleware(['role:'.UserRole::COMPANY_OWNER->value])
-            ->controller(StaffController::class)
-            ->group(function () {
-                Route::get('/', 'index')->name('index');
-                Route::post('/', 'store')->name('store');
-                Route::get('/{id}', 'show')->name('show');
-                Route::put('/{id}', 'update')->name('update');
-                Route::delete('/{id}', 'destroy')->name('destroy');
-                Route::patch('/{id}/restore', 'restore')->name('restore');
-                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
-            });
-
-        /*
-        |------------------------------------------------------------------
-        | Profile
-        |------------------------------------------------------------------
-        */
-
-        Route::controller(ProfileController::class)
-            ->prefix('profile')
-            ->name('profile.')
-            ->group(function () {
-                Route::get('/', 'show')->name('show');
-                Route::patch('/', 'update')->name('update');
-            });
-
-        /*
-        |------------------------------------------------------------------
-        | Project Management
-        |------------------------------------------------------------------
-        */
-
-        Route::prefix('projects')
-            ->name('projects.')
-            ->controller(ProjectController::class)
-            ->group(function () {
-                Route::get('/', 'index')->name('index');
-                Route::post('/', 'store')->name('store');
-                Route::get('/{id}', 'show')->name('show');
-                Route::put('/{id}', 'update')->name('update');
-                Route::delete('/{id}', 'destroy')->name('destroy');
-                Route::patch('/{id}/restore', 'restore')->name('restore');
-                Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
-
-                // Member management
-                Route::post('/{id}/members', 'addMembers')->name('members.add');
-                Route::delete('/{id}/members/{userId}', 'removeMember')->name('members.remove');
-            });
+        });
     });
 });

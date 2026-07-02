@@ -34,7 +34,7 @@ it('allows a project manager to update a project', function () {
 
     Sanctum::actingAs($manager);
 
-    $this->putJson(route('api.v1.projects.update', $project), [
+    $this->putJson(route('api.v1.company.projects.update', $project), [
         'name' => 'Updated project',
     ], ['x-api-key' => 'test-api-key'])
         ->assertSuccessful()

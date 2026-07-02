@@ -19,7 +19,7 @@ it('prevents a user without a company from accessing protected endpoints', funct
 
     Sanctum::actingAs($user);
 
-    $this->getJson(route('api.v1.profile.show'), companyRequirementApiHeaders())
+    $this->getJson(route('api.v1.company.profile.show'), companyRequirementApiHeaders())
         ->assertForbidden()
         ->assertJson([
             'success' => false,
@@ -35,7 +35,7 @@ it('allows a user with a company to access protected endpoints', function () {
 
     Sanctum::actingAs($user);
 
-    $this->getJson(route('api.v1.profile.show'), companyRequirementApiHeaders())
+    $this->getJson(route('api.v1.company.profile.show'), companyRequirementApiHeaders())
         ->assertSuccessful();
 });
 
@@ -47,7 +47,7 @@ it('allows an administrator without a company to access protected endpoints', fu
 
     Sanctum::actingAs($admin);
 
-    $this->getJson(route('api.v1.companies.index'), companyRequirementApiHeaders())
+    $this->getJson(route('api.v1.admin.companies.index'), companyRequirementApiHeaders())
         ->assertSuccessful();
 });
 
@@ -59,7 +59,7 @@ it('allows a company owner to register their first company', function () {
 
     Sanctum::actingAs($owner);
 
-    $this->postJson(route('api.v1.companies.register'), [
+    $this->postJson(route('api.v1.company.register'), [
         'name' => 'Teamoria',
     ], companyRequirementApiHeaders())
         ->assertCreated()
