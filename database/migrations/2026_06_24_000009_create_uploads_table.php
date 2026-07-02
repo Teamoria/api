@@ -1,12 +1,12 @@
 <?php
 
+use App\Enums\FileCategory;
 use App\Enums\UploadStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('uploads', function (Blueprint $table) {
@@ -16,11 +16,14 @@ return new class extends Migration
             $table->string('file_path');
             $table->string('file_name');
             $table->string('file_type');
+            $table->enum('category', FileCategory::cases());
             $table->unsignedBigInteger('file_size')->default(0);
-            $table->string('status')->default(UploadStatus::PENDING->value);
+            $table->enum('status', UploadStatus::cases())->default(UploadStatus::PENDING->value);
             $table->timestamp('upload_date')->nullable();
             $table->timestamps();
+            $table->index(['project_id', 'status']);
         });
+
     }
 
     public function down(): void

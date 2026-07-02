@@ -18,7 +18,7 @@ class VerifyOtpController extends Controller
         $validated = $request->validated();
         $type = OtpType::from($validated['type']);
 
-        if (! $otpService->verify($validated['email'], (int) $validated['code'], $type)) {
+        if (!$otpService->verify($validated['email'], (int) $validated['code'], $type)) {
             return $this->errorResponse(
                 'Invalid or expired verification code.',
                 Response::HTTP_UNPROCESSABLE_ENTITY
@@ -35,17 +35,16 @@ class VerifyOtpController extends Controller
     {
         $user = User::firstWhere('email', $email);
 
-        if (! $user) {
+        if (!$user) {
             return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
         }
         if ($user->email_verified_at) {
             return $this->errorResponse('Email already verified.', Response::HTTP_BAD_REQUEST);
         }
 
-        $user->update([
-            'email_verified_at' => now(),
-            'status' => UserStatus::ACTIVE,
-        ]);
+        $user->email_verified_at = now();
+        $user->status = UserStatus::ACTIVE;
+        $user->save();
 
         return $this->successResponse(
             [
@@ -59,7 +58,7 @@ class VerifyOtpController extends Controller
     {
         $user = User::firstWhere('email', $email);
 
-        if (! $user) {
+        if (!$user) {
             return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
         }
 

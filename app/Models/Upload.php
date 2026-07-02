@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FileCategory;
 use App\Enums\UploadStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -19,15 +20,19 @@ class Upload extends Model
         'file_path',
         'file_name',
         'file_type',
+        'category',
         'file_size',
         'status',
+        'upload_date',
     ];
 
     protected function casts(): array
     {
         return [
             'file_size' => 'integer',
+            'category' => FileCategory::class,
             'status' => UploadStatus::class,
+            'upload_date' => 'datetime',
         ];
     }
 

@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -80,6 +81,15 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
     });
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::prefix('uploads')
+            ->name('uploads.')
+            ->controller(UploadController::class)
+            ->group(function () {
+                Route::post('/', 'upload')->middleware('throttle:10,1')->name('store');
+                Route::get('/list', 'index')->name('list');
+                Route::get('/{projectId}/list', 'listUploadedFiles')->name('list.company');
+            });
+
         /*
         |------------------------------------------------------------------
         | Platform Administration
