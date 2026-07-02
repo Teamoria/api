@@ -18,10 +18,10 @@ class SendOtpController extends Controller
 
         $type = OtpType::from($validated['type']);
 
-        if ($type === OtpType::VerifyEmail) {
+        if ($type === OtpType::VerifyEmail || $type === OtpType::Register) {
             $user = User::firstWhere('email', $validated['email']);
 
-            if (! $user) {
+            if (!$user) {
                 return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
             }
 
