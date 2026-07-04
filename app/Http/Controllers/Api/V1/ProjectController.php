@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProjectController extends Controller
 {
@@ -136,7 +137,15 @@ class ProjectController extends Controller
             ->findOrFail($id);
 
         $this->ensureManager($request->user(), $project);
-        $project->forceDelete();
+
+        DB::transaction(function () use ($project): void {
+            $project->uploads->each(function ($upload): void {
+                Storage::disk('uploads')->delete($upload->file);
+                $upload->forceDelete();
+            });
+
+            $project->forceDelete();
+        });
 
         return $this->successResponse(
             null,
@@ -217,10 +226,12 @@ class ProjectController extends Controller
 
     private function ensureManager(User $user, Project $project): void
     {
-        if (in_array($user->role, [
-            UserRole::ADMIN,
-            UserRole::COMPANY_OWNER,
-        ], true)) {
+        if (
+            in_array($user->role, [
+                UserRole::ADMIN,
+                UserRole::COMPANY_OWNER,
+            ], true)
+        ) {
             return;
         }
 
