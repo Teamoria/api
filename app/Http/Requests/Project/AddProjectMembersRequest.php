@@ -19,7 +19,10 @@ class AddProjectMembersRequest extends FormRequest
             ProjectRole::VIEWER->value,
         ];
 
-        if ($this->user()?->role === UserRole::ADMIN) {
+        if (in_array($this->user()?->role, [
+            UserRole::ADMIN,
+            UserRole::COMPANY_OWNER,
+        ], true)) {
             $assignableRoles[] = ProjectRole::MANAGER->value;
         }
 

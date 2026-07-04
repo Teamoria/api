@@ -194,8 +194,17 @@ class ProjectController extends Controller
     {
         $projectsQuery = Project::query();
 
-        if ($user->role !== UserRole::ADMIN) {
-            $projectsQuery->whereBelongsTo($user->company);
+        if ($user->role === UserRole::ADMIN) {
+            return $projectsQuery;
+        }
+
+        $projectsQuery->whereBelongsTo($user->company);
+
+        if ($user->role !== UserRole::COMPANY_OWNER) {
+            $projectsQuery->whereHas(
+                'users',
+                fn (Builder $query) => $query->whereKey($user->id),
+            );
         }
 
         return $projectsQuery;
@@ -208,7 +217,10 @@ class ProjectController extends Controller
 
     private function ensureManager(User $user, Project $project): void
     {
-        if ($user->role === UserRole::ADMIN) {
+        if (in_array($user->role, [
+            UserRole::ADMIN,
+            UserRole::COMPANY_OWNER,
+        ], true)) {
             return;
         }
 
