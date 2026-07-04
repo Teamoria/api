@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 
@@ -22,18 +23,12 @@ abstract class Controller
         mixed $error = null,
         ?string $errorCode = null,
     ): JsonResponse {
-        $response = [
-            'success' => false,
-            'message' => $message,
-            'data' => [],
-            'error_code' => $errorCode,
-        ];
-
-        if ($error && ! app()->environment('production')) {
-            $response['data'] = $error;
-        }
-
-        return response()->json($response, $code);
+        return (new ApiException(
+            message: $message,
+            details: $error,
+            httpCode: $code,
+            internalCode: $errorCode,
+        ))->render(request());
     }
 
     /**

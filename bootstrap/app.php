@@ -11,10 +11,14 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -44,10 +48,14 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontReportDuplicates();
+
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request, Throwable $e): bool => $request->is('api/*')
+                || $request->expectsJson(),
         );
-        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+
+        $exceptions->render(function (NotFoundHttpException $e, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
@@ -60,14 +68,18 @@ return Application::configure(basePath: dirname(__DIR__))
                 )->render($request);
             }
 
-            return (new ApiException(
-                message: 'The endpoint you are looking for does not exist.',
-                httpCode: 404,
-                internalCode: ApiException::NOT_FOUND,
-            ))->render($request);
+            $message = $e->getMessage();
+
+            if ($message !== '' && ! str_starts_with($message, 'The route ')) {
+                return ApiException::notFound(message: $message)->render($request);
+            }
+
+            return ApiException::notFound(
+                message: 'The requested API endpoint does not exist.',
+            )->render($request);
         });
 
-        $exceptions->render(function (ValidationException $e, Request $request) {
+        $exceptions->render(function (ValidationException $e, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
@@ -75,53 +87,105 @@ return Application::configure(basePath: dirname(__DIR__))
             return ApiException::validation($e->errors())->render($request);
         });
 
-        $exceptions->render(function (AccessDeniedHttpException $e, Request $request) {
+        $exceptions->render(function (AccessDeniedHttpException $e, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
 
-            return ApiException::forbidden()->render($request);
+            $message = $e->getMessage();
+
+            return ApiException::forbidden(
+                $message !== '' && $message !== 'Access Denied.'
+                    ? $message
+                    : 'You do not have permission to perform this action.',
+            )->render($request);
         });
 
-        $exceptions->render(function (AuthorizationException $e, Request $request) {
+        $exceptions->render(function (AuthorizationException $e, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
 
-            return ApiException::forbidden($e->getMessage())->render($request);
+            $message = $e->getMessage();
+
+            return ApiException::forbidden(
+                $message !== '' && $message !== 'This action is unauthorized.'
+                    ? $message
+                    : 'You do not have permission to perform this action.',
+            )->render($request);
         });
 
-        $exceptions->render(function (AuthenticationException $e, Request $request) {
+        $exceptions->render(function (AuthenticationException $e, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
 
-            return (new ApiException(
-                message: 'Unauthenticated. Please log in first.',
-                httpCode: 401,
-                internalCode: ApiException::UNAUTHENTICATED,
-            ))->render($request);
+            return ApiException::unauthenticated()->render($request);
         });
 
-        $exceptions->render(function (UniqueConstraintViolationException $e, Request $request) {
+        $exceptions->render(function (UniqueConstraintViolationException $e, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
 
             return ApiException::conflict(
-                'This entry already exists.'
+                'A record with the same unique value already exists. Please use different information.',
             )->render($request);
         });
 
-        $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
 
-            return ApiException::tooManyRequests()->render($request);
+            return ApiException::tooManyRequests()
+                ->render($request)
+                ->withHeaders($e->getHeaders());
         });
 
-        $exceptions->render(function (Throwable $e, Request $request) {
+        $exceptions->render(function (MethodNotAllowedHttpException $e, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiException::methodNotAllowed($request->method())
+                ->render($request)
+                ->withHeaders($e->getHeaders());
+        });
+
+        $exceptions->render(function (PostTooLargeException $e, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiException::payloadTooLarge()
+                ->render($request)
+                ->withHeaders($e->getHeaders());
+        });
+
+        $exceptions->render(function (HttpExceptionInterface $e, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            $httpCode = $e->getStatusCode();
+            $message = $httpCode >= 500 || $httpCode === 419
+                ? null
+                : ($e->getMessage() ?: null);
+
+            return ApiException::fromHttpStatus(
+                httpCode: $httpCode,
+                message: $message,
+                details: $httpCode >= 500
+                    ? [
+                        'exception' => $e::class,
+                        'message' => $e->getMessage(),
+                    ]
+                    : null,
+            )->render($request)->withHeaders($e->getHeaders());
+        });
+
+        $exceptions->render(function (Throwable $e, Request $request): ?JsonResponse {
             if ($e instanceof ApiException) {
                 return null;
             }
@@ -130,8 +194,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            return ApiException::internal(
-                app()->isLocal() ? $e->getMessage() : 'Something went wrong.'
-            )->render($request);
+            return ApiException::internal(details: [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ])->render($request);
         });
     })->create();
