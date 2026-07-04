@@ -48,4 +48,9 @@ class Company extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function uploads(): HasMany
+    {
+        return $this->hasMany(Upload::class);
+    }
 }

@@ -43,3 +43,61 @@ it('allows a project manager to update a project', function () {
 
     expect($project->refresh()->name)->toBe('Updated project');
 });
+
+it('lists only projects assigned to a company member', function () {
+    $company = Company::factory()->create();
+    $member = User::factory()->for($company)->create([
+        'role' => UserRole::COMPANY_MEMBER,
+    ]);
+    $assignedProject = Project::query()->create([
+        'company_id' => $company->id,
+        'name' => 'Assigned project',
+    ]);
+    Project::query()->create([
+        'company_id' => $company->id,
+        'name' => 'Hidden project',
+    ]);
+    $assignedProject->users()->attach($member, [
+        'role' => ProjectRole::MEMBER->value,
+    ]);
+
+    Sanctum::actingAs($member);
+
+    $this->getJson(
+        route('api.v1.company.projects.index'),
+        ['x-api-key' => 'test-api-key'],
+    )
+        ->assertOk()
+        ->assertJsonCount(1, 'data.projects')
+        ->assertJsonPath('data.projects.0.id', $assignedProject->id);
+});
+
+it('allows a company owner to appoint a project manager', function () {
+    $company = Company::factory()->create();
+    $owner = User::factory()->for($company)->create([
+        'role' => UserRole::COMPANY_OWNER,
+    ]);
+    $newManager = User::factory()->for($company)->create([
+        'role' => UserRole::COMPANY_MANAGER,
+    ]);
+    $project = Project::query()->create([
+        'company_id' => $company->id,
+        'name' => 'Managed project',
+    ]);
+
+    Sanctum::actingAs($owner);
+
+    $this->postJson(
+        route('api.v1.company.projects.members.add', $project),
+        [
+            'user_ids' => [$newManager->id],
+            'role' => ProjectRole::MANAGER->value,
+        ],
+        ['x-api-key' => 'test-api-key'],
+    )->assertOk();
+
+    expect($project->users()
+        ->whereKey($newManager->id)
+        ->wherePivot('role', ProjectRole::MANAGER->value)
+        ->exists())->toBeTrue();
+});

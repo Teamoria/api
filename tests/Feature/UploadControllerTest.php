@@ -1,9 +1,10 @@
 <?php
 
 use App\Enums\FileCategory;
+use App\Enums\ProjectRole;
+use App\Enums\UploadScope;
 use App\Enums\UploadStatus;
-use App\Http\Controllers\Api\V1\UploadController;
-use App\Http\Requests\Upload\UploadRequest;
+use App\Enums\UploadVisibility;
 use App\Models\Project;
 use App\Models\Upload;
 use App\Models\User;
@@ -11,9 +12,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Testing\File;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Mockery\MockInterface;
-
-use function Pest\Laravel\mock;
 
 uses(RefreshDatabase::class);
 
@@ -30,12 +28,15 @@ it('requires authentication to access the upload endpoint', function () {
 });
 
 it('uploads files through the api endpoint', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $user = User::factory()->create();
     $project = Project::query()->create([
         'company_id' => $user->company_id,
         'name' => 'Upload project',
+    ]);
+    $project->users()->attach($user, [
+        'role' => ProjectRole::MEMBER->value,
     ]);
 
     Sanctum::actingAs($user);
@@ -45,32 +46,37 @@ it('uploads files through the api endpoint', function () {
             File::create('notes.pdf')->mimeType('application/pdf'),
         ],
         'project_id' => $project->id,
-        'category' => FileCategory::DOCUMENT->value,
+        'scope' => UploadScope::PROJECT->value,
+        'visibility' => UploadVisibility::MEMBERS->value,
     ], uploadApiHeaders())
         ->assertCreated();
 
-    $path = $response->json('data.files.0.path');
-
-    expect($path)
-        ->toStartWith('uploads/documents/notes-')
-        ->toEndWith('.pdf');
-
-    Storage::disk('public')->assertExists($path);
-
     $upload = Upload::query()->sole();
 
-    expect($upload->project_id)->toBe($project->id)
+    expect($upload->file_path)
+        ->toStartWith("uploads/{$user->company_id}/project/documents/notes-")
+        ->toEndWith('.pdf')
+        ->and($upload->company_id)->toBe($user->company_id)
+        ->and($upload->project_id)->toBe($project->id)
         ->and($upload->user_id)->toBe($user->id)
-        ->and($upload->file_path)->toBe($path)
+        ->and($upload->scope)->toBe(UploadScope::PROJECT)
+        ->and($upload->visibility)->toBe(UploadVisibility::MEMBERS)
         ->and($upload->file_name)->toBe('notes.pdf')
         ->and($upload->file_type)->toBe('application/pdf')
         ->and($upload->category)->toBe(FileCategory::DOCUMENT)
         ->and($upload->status)->toBe(UploadStatus::SUCCESS)
         ->and($upload->upload_date)->not->toBeNull();
+
+    Storage::disk('local')->assertExists($upload->file_path);
+
+    $response
+        ->assertJsonPath('data.files.0.id', $upload->id)
+        ->assertJsonPath('data.files.0.scope', UploadScope::PROJECT->value)
+        ->assertJsonPath('data.files.0.download_url', route('api.v1.uploads.download', $upload));
 });
 
 it('stores uploaded files in directories based on their type', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $files = [
         File::create('photo.jpg')->mimeType('image/jpeg'),
@@ -84,37 +90,31 @@ it('stores uploaded files in directories based on their type', function () {
         'company_id' => $user->company_id,
         'name' => 'Upload project',
     ]);
-    $request = mock(UploadRequest::class, function (MockInterface $mock) use ($files, $project, $user): void {
-        $mock->shouldReceive('validated')
-            ->once()
-            ->with('files')
-            ->andReturn($files);
-        $mock->shouldReceive('validated')
-            ->once()
-            ->with('project_id')
-            ->andReturn($project->id);
-        $mock->shouldReceive('user')
-            ->once()
-            ->andReturn($user);
-    });
+    $project->users()->attach($user, [
+        'role' => ProjectRole::MEMBER->value,
+    ]);
 
-    $response = (new UploadController)->upload($request);
-    $uploadedFiles = $response->getData(true)['data']['files'];
+    Sanctum::actingAs($user);
 
-    expect($response->getStatusCode())->toBe(201)
-        ->and($uploadedFiles)->toHaveCount(5)
-        ->and($uploadedFiles[0]['path'])->toStartWith('uploads/images/')
-        ->and($uploadedFiles[1]['path'])->toStartWith('uploads/videos/')
-        ->and($uploadedFiles[2]['path'])->toStartWith('uploads/audio/')
-        ->and($uploadedFiles[3]['path'])->toStartWith('uploads/documents/notes-')
-        ->and($uploadedFiles[3]['path'])->toEndWith('.pdf')
-        ->and($uploadedFiles[4]['path'])->toStartWith('uploads/documents/notes-')
-        ->and($uploadedFiles[4]['path'])->toEndWith('.pdf')
-        ->and($uploadedFiles[3]['path'])->not->toBe($uploadedFiles[4]['path']);
+    $this->post(route('api.v1.uploads.store'), [
+        'files' => $files,
+        'project_id' => $project->id,
+        'scope' => UploadScope::PROJECT->value,
+    ], uploadApiHeaders())
+        ->assertCreated()
+        ->assertJsonCount(5, 'data.files');
 
-    Storage::disk('public')->assertExists(
-        array_column($uploadedFiles, 'path'),
-    );
+    $paths = Upload::query()->latest('created_at')->pluck('file_path');
+
+    expect($paths)->toHaveCount(5)
+        ->and($paths->contains(fn (string $path) => str_contains($path, '/images/')))->toBeTrue()
+        ->and($paths->contains(fn (string $path) => str_contains($path, '/videos/')))->toBeTrue()
+        ->and($paths->contains(fn (string $path) => str_contains($path, '/audio/')))->toBeTrue()
+        ->and($paths->filter(fn (string $path) => str_contains($path, '/documents/notes-')))
+        ->toHaveCount(2)
+        ->and($paths->unique())->toHaveCount(5);
+
+    Storage::disk('local')->assertExists($paths->all());
 
     expect(Upload::query()->count())->toBe(5)
         ->and(Upload::query()->whereBelongsTo($project)->count())->toBe(5)
@@ -151,7 +151,7 @@ it('paginates uploaded files', function () {
 
     $response = $this->getJson(
         route('api.v1.uploads.list.company', [
-            'projectId' => $project->id,
+            'project' => $project->id,
             'page' => 2,
         ]),
         uploadApiHeaders(),
@@ -178,8 +178,11 @@ function createUploadsForPagination(Project $project, User $user, int $count): v
 {
     foreach (range(1, $count) as $index) {
         Upload::create([
+            'company_id' => $project->company_id,
             'project_id' => $project->id,
             'user_id' => $user->id,
+            'scope' => UploadScope::PROJECT,
+            'visibility' => UploadVisibility::PRIVATE,
             'file_path' => "uploads/documents/file-{$project->id}-{$index}.pdf",
             'file_name' => "file-{$index}.pdf",
             'file_type' => 'application/pdf',
