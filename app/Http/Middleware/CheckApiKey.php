@@ -2,9 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\ApiException;
 use Closure;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckApiKey
@@ -14,25 +15,24 @@ class CheckApiKey
         $configuredApiKey = config('api.key');
         $providedApiKey = $request->header('x-api-key');
 
-        if (
-            ! is_string($configuredApiKey)
-            || $configuredApiKey === ''
-            || ! is_string($providedApiKey)
-            || ! hash_equals($configuredApiKey, $providedApiKey)
-        ) {
-            return $this->unauthorizedResponse();
+        if (! is_string($configuredApiKey) || $configuredApiKey === '') {
+            throw new RuntimeException('The API key is not configured.');
+        }
+
+        if (! is_string($providedApiKey) || $providedApiKey === '') {
+            throw ApiException::unauthenticated(
+                message: 'The x-api-key header is required.',
+                internalCode: ApiException::MISSING_API_KEY,
+            );
+        }
+
+        if (! hash_equals($configuredApiKey, $providedApiKey)) {
+            throw ApiException::unauthenticated(
+                message: 'The provided API key is invalid.',
+                internalCode: ApiException::INVALID_API_KEY,
+            );
         }
 
         return $next($request);
-    }
-
-    private function unauthorizedResponse(): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'message' => 'Invalid API key.',
-            'error_code' => 'UNAUTHENTICATED',
-            'data' => [],
-        ], 401);
     }
 }
