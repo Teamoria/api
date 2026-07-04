@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -25,5 +27,16 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
             'company_id' => $companies->first()->id,
         ]);
+
+        User::factory()->create([
+            'name' => 'Admin',
+            'email' => 'ahmedalyazuri@gmail.com',
+            'password' => Hash::make('1234568'),
+            'company_id' => $companies->first()->id,
+            'role' => UserRole::ADMIN,
+        ]);
+
+
+
     }
 }
