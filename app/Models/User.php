@@ -70,4 +70,11 @@ class User extends Authenticatable
     {
         return $this->hasMany(Upload::class);
     }
+
+    public function sharedUploads(): BelongsToMany
+    {
+        return $this->belongsToMany(Upload::class, 'upload_permissions')
+            ->withPivot(['access_level', 'granted_by'])
+            ->withTimestamps();
+    }
 }

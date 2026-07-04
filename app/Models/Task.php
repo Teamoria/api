@@ -57,4 +57,9 @@ class Task extends Model
     {
         return $this->hasMany(TaskNote::class);
     }
+
+    public function uploads(): HasMany
+    {
+        return $this->hasMany(Upload::class);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProjectRole;
 use App\Enums\ProjectStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -42,6 +43,14 @@ class Project extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withPivot('role')->withTimestamps();
+    }
+
+    public function managers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class)
+            ->wherePivot('role', ProjectRole::MANAGER->value)
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     public function tasks(): HasMany

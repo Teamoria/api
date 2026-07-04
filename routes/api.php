@@ -86,8 +86,15 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->controller(UploadController::class)
             ->group(function () {
                 Route::post('/', 'upload')->middleware('throttle:10,1')->name('store');
+                Route::get('/', 'index')->name('index');
                 Route::get('/list', 'index')->name('list');
-                Route::get('/{projectId}/list', 'listUploadedFiles')->name('list.company');
+                Route::get('/mine', 'mine')->name('mine');
+                Route::get('/{project}/list', 'listUploadedFiles')->name('list.company');
+                Route::get('/{upload}/download', 'download')->name('download');
+                Route::post('/{upload}/permissions', 'grantAccess')->name('permissions.store');
+                Route::delete('/{upload}/permissions/{user}', 'revokeAccess')->name('permissions.destroy');
+                Route::get('/{upload}', 'show')->name('show');
+                Route::delete('/{upload}', 'destroy')->name('destroy');
             });
 
         /*
