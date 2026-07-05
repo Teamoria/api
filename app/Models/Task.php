@@ -15,6 +15,11 @@ class Task extends Model
 {
     use HasUuids, SoftDeletes;
 
+    protected $attributes = [
+        'status' => TaskStatus::TODO->value,
+        'priority' => TaskPriority::MEDIUM->value,
+    ];
+
     protected $fillable = [
         'project_id',
         'title',
