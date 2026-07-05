@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -139,6 +140,22 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     Route::delete('/{id}/members/{userId}', 'removeMember')->name('members.remove');
                 });
 
+                Route::prefix('tasks')->name('tasks.')->controller(TaskController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{id}', 'show')->name('show');
+                    Route::put('/{id}', 'update')->name('update');
+                    Route::delete('/{id}', 'destroy')->name('destroy');
+                    Route::patch('/{id}/restore', 'restore')->name('restore');
+                    Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                    Route::post('/{id}/assignees', 'addAssignees')->name('assignees.add');
+                    Route::delete('/{id}/assignees/{userId}', 'removeAssignee')->name('assignees.remove');
+                    Route::post('/{id}/dependencies', 'addDependencies')->name('dependencies.add');
+                    Route::delete('/{id}/dependencies/{dependencyId}', 'removeDependency')->name('dependencies.remove');
+                    Route::post('/{id}/notes', 'addNote')->name('notes.add');
+                    Route::delete('/{id}/notes/{noteId}', 'removeNote')->name('notes.remove');
+                });
+
                 Route::prefix('profile')->name('profile.')->controller(ProfileController::class)->group(function () {
                     Route::get('/', 'show')->name('show');
                     Route::patch('/', 'update')->name('update');
@@ -181,6 +198,22 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
                     Route::post('/{id}/members', 'addMembers')->name('members.add');
                     Route::delete('/{id}/members/{userId}', 'removeMember')->name('members.remove');
+                });
+
+                Route::prefix('tasks')->name('tasks.')->controller(TaskController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{id}', 'show')->name('show');
+                    Route::put('/{id}', 'update')->name('update');
+                    Route::delete('/{id}', 'destroy')->name('destroy');
+                    Route::patch('/{id}/restore', 'restore')->name('restore');
+                    Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                    Route::post('/{id}/assignees', 'addAssignees')->name('assignees.add');
+                    Route::delete('/{id}/assignees/{userId}', 'removeAssignee')->name('assignees.remove');
+                    Route::post('/{id}/dependencies', 'addDependencies')->name('dependencies.add');
+                    Route::delete('/{id}/dependencies/{dependencyId}', 'removeDependency')->name('dependencies.remove');
+                    Route::post('/{id}/notes', 'addNote')->name('notes.add');
+                    Route::delete('/{id}/notes/{noteId}', 'removeNote')->name('notes.remove');
                 });
 
                 Route::prefix('profile')->name('profile.')->controller(ProfileController::class)->group(function () {

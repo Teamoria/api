@@ -15,8 +15,8 @@ return new class extends Migration
             $table->foreignUuid('project_id')->constrained('projects')->cascadeOnDelete();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->string('status')->default(TaskStatus::TODO->value);
-            $table->string('priority')->default(TaskPriority::MEDIUM->value);
+            $table->enum('status', TaskStatus::cases())->default(TaskStatus::TODO->value);
+            $table->enum('priority', TaskPriority::cases())->default(TaskPriority::MEDIUM->value);
             $table->date('due_date')->nullable();
             $table->timestamps();
             $table->softDeletes();
