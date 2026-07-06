@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\Auth\ResetPasswordController;
 use App\Http\Controllers\Api\V1\Auth\SendOtpController;
 use App\Http\Controllers\Api\V1\Auth\VerifyOtpController;
+use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
@@ -82,6 +83,14 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
     });
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::prefix('chat')
+            ->name('chat.')
+            ->controller(ChatController::class)
+            ->group(function () {
+                Route::post('/', 'ask')->name('ask');
+                Route::get('/sessions', 'sessions')->name('sessions');
+            });
+
         Route::prefix('uploads')
             ->name('uploads.')
             ->controller(UploadController::class)
