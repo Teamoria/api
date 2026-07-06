@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Auth\SendOtpController;
 use App\Http\Controllers\Api\V1\Auth\VerifyOtpController;
 use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\StaffController;
@@ -118,6 +119,8 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->name('admin.')
             ->middleware('role:'.UserRole::ADMIN->value)
             ->group(function () {
+                Route::get('dashboard', DashboardController::class)->name('dashboard');
+
                 Route::prefix('users')->name('users.')->controller(UserController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
                     Route::post('/', 'store')->name('store');
@@ -184,6 +187,8 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                 ->name('register');
 
             Route::middleware('check-company')->group(function () {
+                Route::get('dashboard', DashboardController::class)->name('dashboard');
+
                 Route::prefix('staff')
                     ->name('staff.')
                     ->middleware('role:'.UserRole::COMPANY_OWNER->value)
