@@ -12,6 +12,7 @@ use App\Models\Upload;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Testing\File;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
@@ -20,6 +21,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     config()->set('api.key', 'test-api-key');
     Storage::fake('local');
+    Queue::fake();
 });
 
 it('keeps personal files private and lists only the files uploaded by the user', function () {

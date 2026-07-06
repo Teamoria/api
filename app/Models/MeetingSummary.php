@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MeetingSummary extends Model
 {
     use HasUuids;
+
     protected $fillable = ['upload_id', 'transcript', 'summary'];
 
     public function upload(): BelongsTo
@@ -20,5 +21,10 @@ class MeetingSummary extends Model
     public function extractedDecisions(): HasMany
     {
         return $this->hasMany(ExtractedDecision::class);
+    }
+
+    public function extractedTasks(): HasMany
+    {
+        return $this->hasMany(ExtractedTask::class);
     }
 }

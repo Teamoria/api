@@ -41,4 +41,10 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'ai' => [
+        'base_url' => env('AI_SERVICE_URL', 'https://ai.teamoria.online'),
+        'api_key' => env('AI_SERVICE_API_KEY'),
+        'timeout' => env('AI_SERVICE_TIMEOUT', 120),
+    ],
+
 ];

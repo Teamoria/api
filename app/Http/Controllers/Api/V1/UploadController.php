@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\FileCategory;
+use App\Enums\ProcessingStatus;
 use App\Enums\UploadAccessLevel;
 use App\Enums\UploadScope;
 use App\Enums\UploadStatus;
@@ -14,6 +15,7 @@ use App\Http\Requests\Upload\GrantUploadAccessRequest;
 use App\Http\Requests\Upload\ListUploadsRequest;
 use App\Http\Requests\Upload\UploadRequest;
 use App\Http\Resources\UploadResource;
+use App\Jobs\ProcessUploadJob;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Upload;
@@ -134,6 +136,8 @@ class UploadController extends Controller
             );
         }
 
+        ProcessUploadJob::dispatch($upload);
+
         return $upload->load(['user', 'sharedUsers']);
     }
 
@@ -217,7 +221,12 @@ class UploadController extends Controller
     {
         Gate::authorize('view', $upload);
 
-        $upload->load('user');
+        $upload->load([
+            'user',
+            'meetingSummary.extractedDecisions',
+            'meetingSummary.extractedTasks',
+            'knowledgeChunks',
+        ]);
 
         if ($request->user()->can('share', $upload)) {
             $upload->load('sharedUsers');
@@ -227,6 +236,21 @@ class UploadController extends Controller
             new UploadResource($upload),
             'File fetched successfully.',
         );
+    }
+
+    public function status(Upload $upload): JsonResponse
+    {
+        Gate::authorize('view', $upload);
+
+        $response = [
+            'processing_status' => $upload->processing_status->value,
+        ];
+
+        if ($upload->processing_status === ProcessingStatus::FAILED) {
+            $response['processing_error'] = $upload->processing_error;
+        }
+
+        return $this->successResponse($response, 'Processing status fetched successfully.');
     }
 
     public function download(Upload $upload): StreamedResponse

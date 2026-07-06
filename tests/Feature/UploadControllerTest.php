@@ -5,11 +5,13 @@ use App\Enums\ProjectRole;
 use App\Enums\UploadScope;
 use App\Enums\UploadStatus;
 use App\Enums\UploadVisibility;
+use App\Jobs\ProcessUploadJob;
 use App\Models\Project;
 use App\Models\Upload;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Testing\File;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
@@ -29,7 +31,7 @@ it('requires authentication to access the upload endpoint', function () {
 
 it('uploads files through the api endpoint', function () {
     Storage::fake('local');
-
+    Queue::fake();
     $user = User::factory()->create();
     $project = Project::query()->create([
         'company_id' => $user->company_id,
@@ -73,11 +75,13 @@ it('uploads files through the api endpoint', function () {
         ->assertJsonPath('data.files.0.id', $upload->id)
         ->assertJsonPath('data.files.0.scope', UploadScope::PROJECT->value)
         ->assertJsonPath('data.files.0.download_url', route('api.v1.uploads.download', $upload));
+
+    Queue::assertPushed(ProcessUploadJob::class, 1);
 });
 
 it('stores uploaded files in directories based on their type', function () {
     Storage::fake('local');
-
+    Queue::fake();
     $files = [
         File::create('photo.jpg')->mimeType('image/jpeg'),
         File::create('meeting.mp4')->mimeType('video/mp4'),
@@ -119,6 +123,8 @@ it('stores uploaded files in directories based on their type', function () {
     expect(Upload::query()->count())->toBe(5)
         ->and(Upload::query()->whereBelongsTo($project)->count())->toBe(5)
         ->and(Upload::query()->whereBelongsTo($user)->count())->toBe(5);
+
+    Queue::assertPushed(ProcessUploadJob::class, 5);
 });
 
 it('paginates uploaded files', function () {
