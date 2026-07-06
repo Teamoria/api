@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\FileCategory;
+use App\Enums\ProcessingStatus;
 use App\Enums\ProjectRole;
 use App\Enums\UploadAccessLevel;
 use App\Enums\UploadScope;
@@ -24,6 +25,7 @@ class Upload extends Model
     protected $attributes = [
         'visibility' => UploadVisibility::PRIVATE->value,
         'status' => UploadStatus::PENDING->value,
+        'processing_status' => ProcessingStatus::QUEUED->value,
         'file_size' => 0,
     ];
 
@@ -40,6 +42,8 @@ class Upload extends Model
         'category',
         'file_size',
         'status',
+        'processing_status',
+        'processing_error',
         'upload_date',
     ];
 
@@ -51,6 +55,7 @@ class Upload extends Model
             'scope' => UploadScope::class,
             'visibility' => UploadVisibility::class,
             'status' => UploadStatus::class,
+            'processing_status' => ProcessingStatus::class,
             'upload_date' => 'datetime',
         ];
     }

@@ -92,6 +92,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                 Route::get('/mine', 'mine')->name('mine');
                 Route::get('/{project}/list', 'listUploadedFiles')->name('list.company');
                 Route::get('/{upload}/download', 'download')->name('download');
+                Route::get('/{upload}/status', 'status')->name('status');
                 Route::post('/{upload}/permissions', 'grantAccess')->name('permissions.store');
                 Route::delete('/{upload}/permissions/{user}', 'revokeAccess')->name('permissions.destroy');
                 Route::get('/{upload}', 'show')->name('show');
