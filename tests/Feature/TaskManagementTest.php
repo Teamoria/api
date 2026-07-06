@@ -1,14 +1,20 @@
 <?php
 
+use App\Enums\FileCategory;
 use App\Enums\ProjectRole;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Enums\UploadScope;
+use App\Enums\UploadStatus;
+use App\Enums\UploadVisibility;
 use App\Enums\UserRole;
 use App\Models\Company;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Upload;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -255,6 +261,45 @@ it('allows an administrator to manage tasks across companies', function () {
     ], taskApiHeaders())
         ->assertCreated()
         ->assertJsonPath('data.project.id', $project->id);
+});
+
+it('removes stored upload files when permanently deleting a task', function () {
+    Storage::fake('local');
+    [$project, $manager] = taskWorkspace();
+    $task = Task::query()->create([
+        'project_id' => $project->id,
+        'title' => 'Disposable task',
+    ]);
+    $filePath = "uploads/{$project->company_id}/task/documents/task-file.pdf";
+    Storage::disk('local')->put($filePath, 'task file');
+    $upload = Upload::query()->create([
+        'company_id' => $project->company_id,
+        'project_id' => $project->id,
+        'task_id' => $task->id,
+        'user_id' => $manager->id,
+        'scope' => UploadScope::TASK,
+        'visibility' => UploadVisibility::PRIVATE,
+        'file_path' => $filePath,
+        'file_name' => 'task-file.pdf',
+        'file_type' => 'application/pdf',
+        'category' => FileCategory::DOCUMENT,
+        'file_size' => 9,
+        'status' => UploadStatus::SUCCESS,
+        'upload_date' => now(),
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    $this->deleteJson(
+        route('api.v1.company.tasks.force-delete', $task),
+        [],
+        taskApiHeaders(),
+    )->assertOk();
+
+    Storage::disk('local')->assertMissing($filePath);
+
+    expect(Task::withTrashed()->find($task->id))->toBeNull()
+        ->and(Upload::query()->find($upload->id))->toBeNull();
 });
 
 /**

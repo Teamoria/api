@@ -9,6 +9,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -92,7 +93,9 @@ class UserController extends Controller
     public function forceDelete(string $id): JsonResponse
     {
         $user = User::withTrashed()->findOrFail($id);
+        $filePaths = $user->uploads()->pluck('file_path')->all();
         $user->forceDelete();
+        Storage::disk('local')->delete($filePaths);
 
         return $this->successResponse(
             null,

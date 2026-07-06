@@ -9,6 +9,7 @@ use App\Http\Resources\CompanyResource;
 use App\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class CompanyController extends Controller
 {
@@ -92,7 +93,9 @@ class CompanyController extends Controller
     public function forceDelete(string $id): JsonResponse
     {
         $company = Company::withTrashed()->findOrFail($id);
+        $filePaths = $company->uploads()->pluck('file_path')->all();
         $company->forceDelete();
+        Storage::disk('local')->delete($filePaths);
 
         return $this->successResponse(
             null,
