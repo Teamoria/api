@@ -1,12 +1,18 @@
 <?php
 
+use App\Enums\FileCategory;
 use App\Enums\ProjectRole;
 use App\Enums\ProjectStatus;
+use App\Enums\UploadScope;
+use App\Enums\UploadStatus;
+use App\Enums\UploadVisibility;
 use App\Enums\UserRole;
 use App\Models\Company;
 use App\Models\Project;
+use App\Models\Upload;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -157,6 +163,44 @@ it('keeps company project routes scoped to the authenticated company', function 
         route('api.v1.company.projects.show', $otherCompanyProject),
         routeSeparationApiHeaders(),
     )->assertNotFound();
+});
+
+it('removes stored upload files when an administrator permanently deletes a company', function () {
+    Storage::fake('local');
+    $administrator = User::factory()->create([
+        'company_id' => null,
+        'role' => UserRole::ADMIN,
+    ]);
+    $company = Company::factory()->create();
+    $uploader = User::factory()->for($company)->create();
+    $filePath = "uploads/{$company->id}/company/documents/company-file.pdf";
+    Storage::disk('local')->put($filePath, 'company file');
+    $upload = Upload::query()->create([
+        'company_id' => $company->id,
+        'user_id' => $uploader->id,
+        'scope' => UploadScope::COMPANY,
+        'visibility' => UploadVisibility::PRIVATE,
+        'file_path' => $filePath,
+        'file_name' => 'company-file.pdf',
+        'file_type' => 'application/pdf',
+        'category' => FileCategory::DOCUMENT,
+        'file_size' => 12,
+        'status' => UploadStatus::SUCCESS,
+        'upload_date' => now(),
+    ]);
+
+    Sanctum::actingAs($administrator);
+
+    $this->deleteJson(
+        route('api.v1.admin.companies.force-delete', $company),
+        [],
+        routeSeparationApiHeaders(),
+    )->assertOk();
+
+    Storage::disk('local')->assertMissing($filePath);
+
+    expect(Company::withTrashed()->find($company->id))->toBeNull()
+        ->and(Upload::query()->find($upload->id))->toBeNull();
 });
 
 function routeSeparationApiHeaders(): array

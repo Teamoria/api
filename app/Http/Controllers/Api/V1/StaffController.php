@@ -10,6 +10,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class StaffController extends Controller
 {
@@ -108,7 +109,9 @@ class StaffController extends Controller
         $user = User::withTrashed()
             ->whereBelongsTo($request->user()->company)
             ->findOrFail($id);
+        $filePaths = $user->uploads()->pluck('file_path')->all();
         $user->forceDelete();
+        Storage::disk('local')->delete($filePaths);
 
         return $this->successResponse(
             null,

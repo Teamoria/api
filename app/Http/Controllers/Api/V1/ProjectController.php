@@ -137,15 +137,9 @@ class ProjectController extends Controller
             ->findOrFail($id);
 
         $this->ensureManager($request->user(), $project);
-
-        DB::transaction(function () use ($project): void {
-            $project->uploads->each(function ($upload): void {
-                Storage::disk('uploads')->delete($upload->file);
-                $upload->forceDelete();
-            });
-
-            $project->forceDelete();
-        });
+        $filePaths = $project->uploads()->pluck('file_path')->all();
+        $project->forceDelete();
+        Storage::disk('local')->delete($filePaths);
 
         return $this->successResponse(
             null,

@@ -15,7 +15,6 @@ use App\Http\Resources\TaskNoteResource;
 use App\Http\Resources\TaskResource;
 use App\Models\Project;
 use App\Models\Task;
-use App\Models\Upload;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -157,18 +156,9 @@ class TaskController extends Controller
             ->withTrashed()
             ->findOrFail($id);
         $this->ensureManager($request->user(), $task->project);
-
-        DB::transaction(function () use ($task): void {
-            $task->uploads()
-                ->withTrashed()
-                ->get()
-                ->each(function (Upload $upload): void {
-                    Storage::disk('local')->delete($upload->file_path);
-                    $upload->forceDelete();
-                });
-
-            $task->forceDelete();
-        });
+        $filePaths = $task->uploads()->pluck('file_path')->all();
+        $task->forceDelete();
+        Storage::disk('local')->delete($filePaths);
 
         return $this->successResponse(
             null,

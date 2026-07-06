@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProjectRole;
 use App\Enums\UserRole;
 use App\Models\Project;
 use App\Models\User;
@@ -51,6 +52,9 @@ it('sends chat questions to the ai service', function () {
         'company_id' => $user->company_id,
         'name' => 'Chat project',
     ]);
+    $project->users()->attach($user, [
+        'role' => ProjectRole::MANAGER->value,
+    ]);
     $payload = [
         'project_id' => $project->id,
         'question' => 'What did the team decide?',
@@ -87,6 +91,25 @@ it('sends chat questions to the ai service', function () {
         && $request->hasHeader('X-User-Role', UserRole::COMPANY_MANAGER->value)
         && $request->data() === $payload);
     Http::assertSentCount(1);
+});
+
+it('prevents company users from asking about inaccessible projects', function () {
+    $user = User::factory()->create([
+        'role' => UserRole::COMPANY_MANAGER,
+    ]);
+    $project = Project::query()->create([
+        'company_id' => $user->company_id,
+        'name' => 'Unassigned project',
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson(route('api.v1.chat.ask'), [
+        'project_id' => $project->id,
+        'question' => 'What happened in this project?',
+    ], chatApiHeaders())->assertForbidden();
+
+    Http::assertNothingSent();
 });
 
 it('fetches chat sessions from the ai service', function () {

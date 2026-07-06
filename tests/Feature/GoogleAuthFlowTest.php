@@ -1,10 +1,8 @@
 <?php
 
 use App\Enums\UserStatus;
-use App\Http\Controllers\Api\V1\Auth\GoogleAuthController;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Testing\TestResponse;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 
@@ -45,7 +43,7 @@ it('authenticates a new active user from the Google callback', function () {
 
     mockGoogleCallbackProvider($googleUser);
 
-    $response = TestResponse::fromBaseResponse(app(GoogleAuthController::class)->handleCallback());
+    $response = $this->getJson(route('auth.google.callback'));
 
     $response
         ->assertSuccessful()
@@ -75,7 +73,7 @@ it('rejects a conflicting Google identity from the callback', function () {
 
     mockGoogleCallbackProvider($googleUser);
 
-    $response = TestResponse::fromBaseResponse(app(GoogleAuthController::class)->handleCallback());
+    $response = $this->getJson(route('auth.google.callback'));
 
     $response->assertUnauthorized();
 

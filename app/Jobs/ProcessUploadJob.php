@@ -8,6 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -65,11 +66,13 @@ class ProcessUploadJob implements ShouldQueue
         /** @var array{transcript?: string, summary?: string, decisions?: array<int, string>, tasks?: array<int, string>, chunks?: array<int, array{content: string, metadata?: array<string, mixed>, embedding?: array<int, float>}>} $data */
         $data = $response->json();
 
-        $this->saveAiResults($data);
+        DB::transaction(function () use ($data): void {
+            $this->saveAiResults($data);
 
-        $this->upload->update([
-            'processing_status' => ProcessingStatus::PROCESSED,
-        ]);
+            $this->upload->update([
+                'processing_status' => ProcessingStatus::PROCESSED,
+            ]);
+        });
 
         Log::info('Upload processed successfully.', ['upload_id' => $this->upload->id]);
     }

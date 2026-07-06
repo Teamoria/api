@@ -1,12 +1,18 @@
 <?php
 
+use App\Enums\FileCategory;
 use App\Enums\ProjectRole;
 use App\Enums\ProjectStatus;
+use App\Enums\UploadScope;
+use App\Enums\UploadStatus;
+use App\Enums\UploadVisibility;
 use App\Enums\UserRole;
 use App\Models\Company;
 use App\Models\Project;
+use App\Models\Upload;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -100,4 +106,48 @@ it('allows a company owner to appoint a project manager', function () {
         ->whereKey($newManager->id)
         ->wherePivot('role', ProjectRole::MANAGER->value)
         ->exists())->toBeTrue();
+});
+
+it('removes stored upload files when permanently deleting a project', function () {
+    Storage::fake('local');
+    $company = Company::factory()->create();
+    $manager = User::factory()->for($company)->create([
+        'role' => UserRole::COMPANY_MANAGER,
+    ]);
+    $project = Project::query()->create([
+        'company_id' => $company->id,
+        'name' => 'Disposable project',
+    ]);
+    $project->users()->attach($manager, [
+        'role' => ProjectRole::MANAGER->value,
+    ]);
+    $filePath = "uploads/{$company->id}/project/documents/project-file.pdf";
+    Storage::disk('local')->put($filePath, 'project file');
+    $upload = Upload::query()->create([
+        'company_id' => $company->id,
+        'project_id' => $project->id,
+        'user_id' => $manager->id,
+        'scope' => UploadScope::PROJECT,
+        'visibility' => UploadVisibility::PRIVATE,
+        'file_path' => $filePath,
+        'file_name' => 'project-file.pdf',
+        'file_type' => 'application/pdf',
+        'category' => FileCategory::DOCUMENT,
+        'file_size' => 12,
+        'status' => UploadStatus::SUCCESS,
+        'upload_date' => now(),
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    $this->deleteJson(
+        route('api.v1.company.projects.force-delete', $project),
+        [],
+        ['x-api-key' => 'test-api-key'],
+    )->assertOk();
+
+    Storage::disk('local')->assertMissing($filePath);
+
+    expect(Project::withTrashed()->find($project->id))->toBeNull()
+        ->and(Upload::query()->find($upload->id))->toBeNull();
 });

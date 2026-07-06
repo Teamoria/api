@@ -2,13 +2,36 @@
 
 namespace App\Http\Requests\Chat;
 
+use App\Enums\UserRole;
+use App\Models\Project;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ChatRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        $project = Project::query()->find($this->string('project_id')->toString());
+
+        if ($project === null || $user->role === UserRole::ADMIN) {
+            return true;
+        }
+
+        if ($user->company_id !== $project->company_id) {
+            return false;
+        }
+
+        if ($user->role === UserRole::COMPANY_OWNER) {
+            return true;
+        }
+
+        return $project->users()->whereKey($user->id)->exists();
     }
 
     /**
@@ -19,7 +42,11 @@ class ChatRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'project_id' => ['required', 'uuid', 'exists:projects,id'],
+            'project_id' => [
+                'required',
+                'uuid',
+                Rule::exists('projects', 'id')->whereNull('deleted_at'),
+            ],
             'question' => ['required', 'string', 'max:5000'],
             'context' => ['sometimes', 'array'],
             'context.*' => ['required', 'string'],
