@@ -55,12 +55,12 @@ class ProcessUploadJob implements ShouldQueue
                 'X-User-Id' => $this->upload->user_id,
                 'X-User-Role' => $this->upload->user?->role?->value ?? 'user',
             ]))
-            ->post('/api/v1/extractions/process', [
-                'upload_id' => $this->upload->id,
-                'project_id' => $this->upload->project_id,
+            ->post('/api/v1/extractions/process', array_filter([
+                'upload_id' => (string) $this->upload->id,
+                'project_id' => $this->upload->project_id ? (string) $this->upload->project_id : null,
                 'file_path' => $this->upload->file_path,
                 'file_url' => $this->generateFileUrl(),
-            ])
+            ]))
             ->throw();
 
         /**
