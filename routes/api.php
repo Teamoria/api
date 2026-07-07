@@ -158,6 +158,8 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     Route::post('/', 'store')->name('store');
                     Route::get('/{id}', 'show')->name('show');
                     Route::put('/{id}', 'update')->name('update');
+                    Route::patch('/{id}/status', 'updateStatus')->name('status.update');
+                    Route::patch('/{id}/progress', 'updateProgress')->name('progress.update');
                     Route::delete('/{id}', 'destroy')->name('destroy');
                     Route::patch('/{id}/restore', 'restore')->name('restore');
                     Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
@@ -220,6 +222,8 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     Route::post('/', 'store')->name('store');
                     Route::get('/{id}', 'show')->name('show');
                     Route::put('/{id}', 'update')->name('update');
+                    Route::patch('/{id}/status', 'updateStatus')->name('status.update');
+                    Route::patch('/{id}/progress', 'updateProgress')->name('progress.update');
                     Route::delete('/{id}', 'destroy')->name('destroy');
                     Route::patch('/{id}/restore', 'restore')->name('restore');
                     Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');

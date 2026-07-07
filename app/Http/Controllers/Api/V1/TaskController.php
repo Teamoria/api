@@ -10,7 +10,9 @@ use App\Http\Requests\Task\AssignTaskUsersRequest;
 use App\Http\Requests\Task\ListTasksRequest;
 use App\Http\Requests\Task\StoreTaskNoteRequest;
 use App\Http\Requests\Task\StoreTaskRequest;
+use App\Http\Requests\Task\UpdateTaskProgressRequest;
 use App\Http\Requests\Task\UpdateTaskRequest;
+use App\Http\Requests\Task\UpdateTaskStatusRequest;
 use App\Http\Resources\TaskNoteResource;
 use App\Http\Resources\TaskResource;
 use App\Models\Project;
@@ -121,6 +123,48 @@ class TaskController extends Controller
         return $this->successResponse(
             new TaskResource($this->loadTaskRelations($task)),
             'Task updated successfully.',
+        );
+    }
+
+    public function updateStatus(UpdateTaskStatusRequest $request, string $id): JsonResponse
+    {
+        $task = $this->accessibleTask($request->user(), $id);
+        $this->ensureCanUpdateStatus($request->user(), $task);
+        $task->update($request->validated());
+
+        return $this->successResponse(
+            new TaskResource($this->loadTaskRelations($task)),
+            'Task status updated successfully.',
+        );
+    }
+
+    public function updateProgress(UpdateTaskProgressRequest $request, string $id): JsonResponse
+    {
+        $task = $this->accessibleTask($request->user(), $id);
+        $this->ensureAssignee($request->user(), $task);
+
+        $validated = $request->validated();
+        $timestamp = now();
+        $progress = [];
+
+        if (array_key_exists('seen', $validated)) {
+            $progress['seen_at'] = $request->boolean('seen') ? $timestamp : null;
+        }
+
+        if (array_key_exists('completed', $validated)) {
+            $isCompleted = $request->boolean('completed');
+            $progress['completed_at'] = $isCompleted ? $timestamp : null;
+
+            if ($isCompleted && ! array_key_exists('seen', $validated)) {
+                $progress['seen_at'] = $timestamp;
+            }
+        }
+
+        $task->assignees()->updateExistingPivot($request->user()->id, $progress);
+
+        return $this->successResponse(
+            new TaskResource($this->loadTaskRelations($task)),
+            'Task progress updated successfully.',
         );
     }
 
@@ -351,6 +395,24 @@ class TaskController extends Controller
                 ->exists(),
             403,
             'You are not authorized to manage this task.',
+        );
+    }
+
+    private function ensureCanUpdateStatus(User $user, Task $task): void
+    {
+        if ($task->assignees()->whereKey($user->id)->exists()) {
+            return;
+        }
+
+        $this->ensureManager($user, $task->project);
+    }
+
+    private function ensureAssignee(User $user, Task $task): void
+    {
+        abort_unless(
+            $task->assignees()->whereKey($user->id)->exists(),
+            403,
+            'You are not assigned to this task.',
         );
     }
 
