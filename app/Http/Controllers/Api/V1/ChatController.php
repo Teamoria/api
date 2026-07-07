@@ -14,8 +14,14 @@ class ChatController extends Controller
 {
     public function ask(ChatRequest $request): JsonResponse
     {
+        $validated = $request->validated();
+
         $response = $this->aiClient($request)
-            ->post('/api/v1/chat', $request->validated())
+            ->post('/api/v1/retrieval/query', [
+                'project_id' => $validated['project_id'],
+                'question' => $validated['question'],
+                'top_k' => $validated['top_k'] ?? 5,
+            ])
             ->throw();
 
         return $this->successResponse(

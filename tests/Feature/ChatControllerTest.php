@@ -58,17 +58,16 @@ it('sends chat questions to the ai service', function () {
     $payload = [
         'project_id' => $project->id,
         'question' => 'What did the team decide?',
-        'context' => [
-            'The team decided to connect Laravel to FastAPI.',
-        ],
     ];
     $aiResponse = [
+        'project_id' => $project->id,
+        'question' => 'What did the team decide?',
         'answer' => 'The team decided to connect Laravel to FastAPI.',
-        'session_id' => 'session-123',
+        'sources' => [],
     ];
 
     Http::fake([
-        'https://ai.example.test/api/v1/chat' => Http::response($aiResponse),
+        'https://ai.example.test/api/v1/retrieval/query' => Http::response($aiResponse),
     ]);
     Sanctum::actingAs($user);
 
@@ -85,11 +84,13 @@ it('sends chat questions to the ai service', function () {
         ]);
 
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
-        && $request->url() === 'https://ai.example.test/api/v1/chat'
+        && $request->url() === 'https://ai.example.test/api/v1/retrieval/query'
         && $request->hasHeader('X-Internal-API-Key', 'internal-ai-key')
         && $request->hasHeader('X-User-Id', $user->id)
         && $request->hasHeader('X-User-Role', UserRole::COMPANY_MANAGER->value)
-        && $request->data() === $payload);
+        && $request['project_id'] === $project->id
+        && $request['question'] === 'What did the team decide?'
+        && $request['top_k'] === 5);
     Http::assertSentCount(1);
 });
 
