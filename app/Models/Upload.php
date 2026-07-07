@@ -124,31 +124,18 @@ class Upload extends Model
                         $query
                             ->where('visibility', UploadVisibility::MEMBERS)
                             ->where(function (Builder $query) use ($user): void {
+                                if (self::canViewCompanyMemberUploads($user)) {
+                                    $query
+                                        ->where('scope', UploadScope::COMPANY)
+                                        ->orWhere(fn (Builder $query) => self::applyProjectMemberVisibility($query, $user))
+                                        ->orWhere(fn (Builder $query) => self::applyTaskMemberVisibility($query, $user));
+
+                                    return;
+                                }
+
                                 $query
-                                    ->where('scope', UploadScope::COMPANY)
-                                    ->orWhere(function (Builder $query) use ($user): void {
-                                        $query
-                                            ->where('scope', UploadScope::PROJECT)
-                                            ->whereHas(
-                                                'project.users',
-                                                fn (Builder $query) => $query->whereKey($user->id),
-                                            );
-                                    })
-                                    ->orWhere(function (Builder $query) use ($user): void {
-                                        $query
-                                            ->where('scope', UploadScope::TASK)
-                                            ->where(function (Builder $query) use ($user): void {
-                                                $query
-                                                    ->whereHas(
-                                                        'task.assignees',
-                                                        fn (Builder $query) => $query->whereKey($user->id),
-                                                    )
-                                                    ->orWhereHas(
-                                                        'project.managers',
-                                                        fn (Builder $query) => $query->whereKey($user->id),
-                                                    );
-                                            });
-                                    });
+                                    ->where(fn (Builder $query) => self::applyProjectMemberVisibility($query, $user))
+                                    ->orWhere(fn (Builder $query) => self::applyTaskMemberVisibility($query, $user));
                             });
                     });
             });
@@ -173,7 +160,7 @@ class Upload extends Model
         }
 
         return match ($this->scope) {
-            UploadScope::COMPANY => true,
+            UploadScope::COMPANY => self::canViewCompanyMemberUploads($user),
             UploadScope::PROJECT => $this->project?->users()->whereKey($user->id)->exists() === true,
             UploadScope::TASK => $this->task?->assignees()->whereKey($user->id)->exists() === true
                 || $this->isProjectManager($user),
@@ -207,13 +194,45 @@ class Upload extends Model
         }
 
         return match ($this->scope) {
-            UploadScope::COMPANY => in_array($user->role, [
-                UserRole::COMPANY_OWNER,
-                UserRole::COMPANY_MANAGER,
-            ], true),
+            UploadScope::COMPANY => self::canViewCompanyMemberUploads($user),
             UploadScope::PROJECT, UploadScope::TASK => $this->isProjectManager($user),
             UploadScope::PERSONAL => false,
         };
+    }
+
+    private static function applyProjectMemberVisibility(Builder $query, User $user): void
+    {
+        $query
+            ->where('scope', UploadScope::PROJECT)
+            ->whereHas(
+                'project.users',
+                fn (Builder $query) => $query->whereKey($user->id),
+            );
+    }
+
+    private static function applyTaskMemberVisibility(Builder $query, User $user): void
+    {
+        $query
+            ->where('scope', UploadScope::TASK)
+            ->where(function (Builder $query) use ($user): void {
+                $query
+                    ->whereHas(
+                        'task.assignees',
+                        fn (Builder $query) => $query->whereKey($user->id),
+                    )
+                    ->orWhereHas(
+                        'project.managers',
+                        fn (Builder $query) => $query->whereKey($user->id),
+                    );
+            });
+    }
+
+    private static function canViewCompanyMemberUploads(User $user): bool
+    {
+        return in_array($user->role, [
+            UserRole::COMPANY_OWNER,
+            UserRole::COMPANY_MANAGER,
+        ], true);
     }
 
     private function isProjectManager(User $user): bool

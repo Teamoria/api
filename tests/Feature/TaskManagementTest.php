@@ -90,6 +90,35 @@ it('lists only tasks from projects available to the authenticated member', funct
         ->assertJsonPath('data.tasks.0.id', $visibleTask->id);
 });
 
+it('prevents members from opening tasks outside their projects', function () {
+    $company = Company::factory()->create();
+    $member = User::factory()->for($company)->create([
+        'role' => UserRole::COMPANY_MEMBER,
+    ]);
+    $visibleProject = Project::query()->create([
+        'company_id' => $company->id,
+        'name' => 'Visible project',
+    ]);
+    $hiddenProject = Project::query()->create([
+        'company_id' => $company->id,
+        'name' => 'Hidden project',
+    ]);
+    $visibleProject->users()->attach($member, [
+        'role' => ProjectRole::MEMBER->value,
+    ]);
+    $hiddenTask = Task::query()->create([
+        'project_id' => $hiddenProject->id,
+        'title' => 'Hidden task',
+    ]);
+
+    Sanctum::actingAs($member);
+
+    $this->getJson(
+        route('api.v1.company.tasks.show', $hiddenTask),
+        taskApiHeaders(),
+    )->assertNotFound();
+});
+
 it('prevents a regular project member from managing tasks', function () {
     [$project, , $member] = taskWorkspace();
     $task = Task::query()->create([
