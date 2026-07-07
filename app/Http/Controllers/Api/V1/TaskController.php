@@ -18,6 +18,7 @@ use App\Http\Resources\TaskResource;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use App\Notifications\TaskAssignedNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -96,6 +97,11 @@ class TaskController extends Controller
 
             return $task;
         });
+        $this->notifyAssignedUsers(
+            $task,
+            $request->user(),
+            $validated['assignee_ids'] ?? [],
+        );
 
         return $this->successResponse(
             new TaskResource($this->loadTaskRelations($task)),
@@ -214,7 +220,12 @@ class TaskController extends Controller
     {
         $task = $this->accessibleTask($request->user(), $id);
         $this->ensureManager($request->user(), $task->project);
-        $task->assignees()->syncWithoutDetaching($request->validated('user_ids'));
+        $changes = $task->assignees()->syncWithoutDetaching($request->validated('user_ids'));
+        $this->notifyAssignedUsers(
+            $task,
+            $request->user(),
+            $changes['attached'] ?? [],
+        );
 
         return $this->successResponse(
             new TaskResource($this->loadTaskRelations($task)),
@@ -447,5 +458,27 @@ class TaskController extends Controller
             'dependentTasks',
             'notes.user',
         ]);
+    }
+
+    /**
+     * @param  array<int, string>  $assigneeIds
+     */
+    private function notifyAssignedUsers(Task $task, User $assignedBy, array $assigneeIds): void
+    {
+        $assigneeIds = array_values(array_unique($assigneeIds));
+
+        if ($assigneeIds === []) {
+            return;
+        }
+
+        $task->loadMissing('project');
+
+        User::query()
+            ->whereKey($assigneeIds)
+            ->whereKeyNot($assignedBy->id)
+            ->get()
+            ->each(fn (User $user) => $user->notify(
+                new TaskAssignedNotification($task, $assignedBy),
+            ));
     }
 }
