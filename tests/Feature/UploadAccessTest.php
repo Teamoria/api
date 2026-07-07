@@ -106,6 +106,45 @@ it('shows member-visible project files only to project members', function () {
     ], accessApiHeaders())->assertForbidden();
 });
 
+it('does not expose company-wide files to regular employees without explicit access', function () {
+    $company = Company::factory()->create();
+    $owner = User::factory()->for($company)->create([
+        'role' => UserRole::COMPANY_OWNER,
+    ]);
+    $manager = User::factory()->for($company)->create([
+        'role' => UserRole::COMPANY_MANAGER,
+    ]);
+    $employee = User::factory()->for($company)->create([
+        'role' => UserRole::COMPANY_MEMBER,
+    ]);
+
+    Sanctum::actingAs($owner);
+
+    $uploadResponse = $this->post(route('api.v1.uploads.store'), [
+        'files' => [File::create('company-wide.pdf')->mimeType('application/pdf')],
+        'scope' => UploadScope::COMPANY->value,
+        'visibility' => UploadVisibility::MEMBERS->value,
+    ], accessApiHeaders())->assertCreated();
+
+    $upload = Upload::query()->findOrFail($uploadResponse->json('data.files.0.id'));
+
+    Sanctum::actingAs($employee);
+
+    $this->getJson(route('api.v1.uploads.index'), accessApiHeaders())
+        ->assertOk()
+        ->assertJsonCount(0, 'data.files');
+
+    $this->getJson(route('api.v1.uploads.show', $upload), accessApiHeaders())
+        ->assertForbidden();
+
+    Sanctum::actingAs($manager);
+
+    $this->getJson(route('api.v1.uploads.index'), accessApiHeaders())
+        ->assertOk()
+        ->assertJsonCount(1, 'data.files')
+        ->assertJsonPath('data.files.0.id', $upload->id);
+});
+
 it('allows company managers to grant and revoke access to selected employees', function () {
     $company = Company::factory()->create();
     $owner = User::factory()->for($company)->create([
