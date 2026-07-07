@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Auth\VerifyOtpController;
 use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\StaffController;
@@ -109,6 +110,17 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                 Route::delete('/{upload}', 'destroy')->name('destroy');
             });
 
+        Route::prefix('notifications')
+            ->name('notifications.')
+            ->controller(NotificationController::class)
+            ->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::get('/unread-count', 'unreadCount')->name('unread-count');
+                Route::patch('/read-all', 'markAllAsRead')->name('read-all');
+                Route::patch('/{notification}/read', 'markAsRead')->name('read');
+                Route::delete('/{notification}', 'destroy')->name('destroy');
+            });
+
         /*
         |------------------------------------------------------------------
         | Platform Administration
@@ -158,6 +170,8 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     Route::post('/', 'store')->name('store');
                     Route::get('/{id}', 'show')->name('show');
                     Route::put('/{id}', 'update')->name('update');
+                    Route::patch('/{id}/status', 'updateStatus')->name('status.update');
+                    Route::patch('/{id}/progress', 'updateProgress')->name('progress.update');
                     Route::delete('/{id}', 'destroy')->name('destroy');
                     Route::patch('/{id}/restore', 'restore')->name('restore');
                     Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
@@ -220,6 +234,8 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     Route::post('/', 'store')->name('store');
                     Route::get('/{id}', 'show')->name('show');
                     Route::put('/{id}', 'update')->name('update');
+                    Route::patch('/{id}/status', 'updateStatus')->name('status.update');
+                    Route::patch('/{id}/progress', 'updateProgress')->name('progress.update');
                     Route::delete('/{id}', 'destroy')->name('destroy');
                     Route::patch('/{id}/restore', 'restore')->name('restore');
                     Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');

@@ -45,7 +45,9 @@ class Task extends Model
 
     public function assignees(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'task_user')->withTimestamps();
+        return $this->belongsToMany(User::class, 'task_user')
+            ->withPivot(['seen_at', 'completed_at'])
+            ->withTimestamps();
     }
 
     public function dependencies(): BelongsToMany

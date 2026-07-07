@@ -10,12 +10,15 @@ use App\Http\Requests\Task\AssignTaskUsersRequest;
 use App\Http\Requests\Task\ListTasksRequest;
 use App\Http\Requests\Task\StoreTaskNoteRequest;
 use App\Http\Requests\Task\StoreTaskRequest;
+use App\Http\Requests\Task\UpdateTaskProgressRequest;
 use App\Http\Requests\Task\UpdateTaskRequest;
+use App\Http\Requests\Task\UpdateTaskStatusRequest;
 use App\Http\Resources\TaskNoteResource;
 use App\Http\Resources\TaskResource;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use App\Notifications\TaskAssignedNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -94,6 +97,11 @@ class TaskController extends Controller
 
             return $task;
         });
+        $this->notifyAssignedUsers(
+            $task,
+            $request->user(),
+            $validated['assignee_ids'] ?? [],
+        );
 
         return $this->successResponse(
             new TaskResource($this->loadTaskRelations($task)),
@@ -121,6 +129,48 @@ class TaskController extends Controller
         return $this->successResponse(
             new TaskResource($this->loadTaskRelations($task)),
             'Task updated successfully.',
+        );
+    }
+
+    public function updateStatus(UpdateTaskStatusRequest $request, string $id): JsonResponse
+    {
+        $task = $this->accessibleTask($request->user(), $id);
+        $this->ensureCanUpdateStatus($request->user(), $task);
+        $task->update($request->validated());
+
+        return $this->successResponse(
+            new TaskResource($this->loadTaskRelations($task)),
+            'Task status updated successfully.',
+        );
+    }
+
+    public function updateProgress(UpdateTaskProgressRequest $request, string $id): JsonResponse
+    {
+        $task = $this->accessibleTask($request->user(), $id);
+        $this->ensureAssignee($request->user(), $task);
+
+        $validated = $request->validated();
+        $timestamp = now();
+        $progress = [];
+
+        if (array_key_exists('seen', $validated)) {
+            $progress['seen_at'] = $request->boolean('seen') ? $timestamp : null;
+        }
+
+        if (array_key_exists('completed', $validated)) {
+            $isCompleted = $request->boolean('completed');
+            $progress['completed_at'] = $isCompleted ? $timestamp : null;
+
+            if ($isCompleted && ! array_key_exists('seen', $validated)) {
+                $progress['seen_at'] = $timestamp;
+            }
+        }
+
+        $task->assignees()->updateExistingPivot($request->user()->id, $progress);
+
+        return $this->successResponse(
+            new TaskResource($this->loadTaskRelations($task)),
+            'Task progress updated successfully.',
         );
     }
 
@@ -170,7 +220,12 @@ class TaskController extends Controller
     {
         $task = $this->accessibleTask($request->user(), $id);
         $this->ensureManager($request->user(), $task->project);
-        $task->assignees()->syncWithoutDetaching($request->validated('user_ids'));
+        $changes = $task->assignees()->syncWithoutDetaching($request->validated('user_ids'));
+        $this->notifyAssignedUsers(
+            $task,
+            $request->user(),
+            $changes['attached'] ?? [],
+        );
 
         return $this->successResponse(
             new TaskResource($this->loadTaskRelations($task)),
@@ -354,6 +409,24 @@ class TaskController extends Controller
         );
     }
 
+    private function ensureCanUpdateStatus(User $user, Task $task): void
+    {
+        if ($task->assignees()->whereKey($user->id)->exists()) {
+            return;
+        }
+
+        $this->ensureManager($user, $task->project);
+    }
+
+    private function ensureAssignee(User $user, Task $task): void
+    {
+        abort_unless(
+            $task->assignees()->whereKey($user->id)->exists(),
+            403,
+            'You are not assigned to this task.',
+        );
+    }
+
     private function ensureCanAddNote(User $user, Project $project): void
     {
         if (in_array($user->role, [
@@ -385,5 +458,27 @@ class TaskController extends Controller
             'dependentTasks',
             'notes.user',
         ]);
+    }
+
+    /**
+     * @param  array<int, string>  $assigneeIds
+     */
+    private function notifyAssignedUsers(Task $task, User $assignedBy, array $assigneeIds): void
+    {
+        $assigneeIds = array_values(array_unique($assigneeIds));
+
+        if ($assigneeIds === []) {
+            return;
+        }
+
+        $task->loadMissing('project');
+
+        User::query()
+            ->whereKey($assigneeIds)
+            ->whereKeyNot($assignedBy->id)
+            ->get()
+            ->each(fn (User $user) => $user->notify(
+                new TaskAssignedNotification($task, $assignedBy),
+            ));
     }
 }

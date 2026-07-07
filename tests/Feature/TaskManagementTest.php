@@ -139,6 +139,74 @@ it('prevents a regular project member from managing tasks', function () {
     expect($task->refresh()->title)->toBe('Protected task');
 });
 
+it('allows assigned members to update task status', function () {
+    [$project, , $member] = taskWorkspace();
+    $task = Task::query()->create([
+        'project_id' => $project->id,
+        'title' => 'Assigned task',
+    ]);
+    $task->assignees()->attach($member);
+
+    Sanctum::actingAs($member);
+
+    $this->patchJson(
+        route('api.v1.company.tasks.status.update', $task),
+        ['status' => TaskStatus::IN_PROGRESS->value],
+        taskApiHeaders(),
+    )
+        ->assertOk()
+        ->assertJsonPath('data.status', TaskStatus::IN_PROGRESS->value);
+
+    expect($task->refresh()->status)->toBe(TaskStatus::IN_PROGRESS);
+});
+
+it('allows assigned members to update their task progress', function () {
+    [$project, , $member] = taskWorkspace();
+    $task = Task::query()->create([
+        'project_id' => $project->id,
+        'title' => 'Progress task',
+    ]);
+    $task->assignees()->attach($member);
+
+    Sanctum::actingAs($member);
+
+    $this->patchJson(
+        route('api.v1.company.tasks.progress.update', $task),
+        ['completed' => true],
+        taskApiHeaders(),
+    )
+        ->assertOk()
+        ->assertJsonPath('data.assignees.0.task_progress.is_seen', true)
+        ->assertJsonPath('data.assignees.0.task_progress.is_completed', true);
+
+    $assignee = $task->assignees()->whereKey($member->id)->firstOrFail();
+
+    expect($assignee->pivot->seen_at)->not->toBeNull()
+        ->and($assignee->pivot->completed_at)->not->toBeNull();
+});
+
+it('prevents unassigned members from updating task status or progress', function () {
+    [$project, , $member] = taskWorkspace();
+    $task = Task::query()->create([
+        'project_id' => $project->id,
+        'title' => 'Unassigned task',
+    ]);
+
+    Sanctum::actingAs($member);
+
+    $this->patchJson(
+        route('api.v1.company.tasks.status.update', $task),
+        ['status' => TaskStatus::IN_PROGRESS->value],
+        taskApiHeaders(),
+    )->assertForbidden();
+
+    $this->patchJson(
+        route('api.v1.company.tasks.progress.update', $task),
+        ['seen' => true],
+        taskApiHeaders(),
+    )->assertForbidden();
+});
+
 it('rejects assignees who are not members of the task project', function () {
     [$project, $manager] = taskWorkspace();
     $outsider = User::factory()->create();
