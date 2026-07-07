@@ -11,7 +11,24 @@ class MeetingSummary extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['upload_id', 'transcript', 'summary'];
+    protected $fillable = [
+        'upload_id',
+        'source_type',
+        'transcript',
+        'transcript_quality',
+        'summary',
+        'structured_summary',
+        'indexed_chunk_count',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'structured_summary' => 'array',
+            'transcript_quality' => 'array',
+            'indexed_chunk_count' => 'integer',
+        ];
+    }
 
     public function upload(): BelongsTo
     {

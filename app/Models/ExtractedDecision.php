@@ -10,7 +10,13 @@ class ExtractedDecision extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['meeting_summary_id', 'decision_text'];
+    protected $fillable = [
+        'meeting_summary_id',
+        'decision_text',
+        'title',
+        'description',
+        'confidence',
+    ];
 
     public function meetingSummary(): BelongsTo
     {

@@ -4,7 +4,6 @@ namespace App\Http\Resources;
 
 use App\Models\ExtractedDecision;
 use App\Models\ExtractedTask;
-use App\Models\KnowledgeChunk;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -45,11 +44,18 @@ class UploadResource extends JsonResource
                     'access_level' => $user->pivot->access_level,
                 ]),
             ),
+            'source_type' => $this->whenLoaded(
+                'meetingSummary',
+                fn () => $this->meetingSummary?->source_type,
+            ),
             'summary' => $this->whenLoaded(
                 'meetingSummary',
                 fn () => $this->meetingSummary ? [
                     'transcript' => $this->meetingSummary->transcript,
+                    'transcript_quality' => $this->meetingSummary->transcript_quality,
                     'summary' => $this->meetingSummary->summary,
+                    'structured_summary' => $this->meetingSummary->structured_summary,
+                    'indexed_chunk_count' => $this->meetingSummary->indexed_chunk_count,
                 ] : null,
             ),
             'decisions' => $this->whenLoaded(
@@ -59,6 +65,17 @@ class UploadResource extends JsonResource
                     ?->map(fn (ExtractedDecision $d): string => $d->decision_text)
                     ?->values() ?? [],
             ),
+            'decision_items' => $this->whenLoaded(
+                'meetingSummary',
+                fn () => $this->meetingSummary
+                    ?->extractedDecisions
+                    ?->map(fn (ExtractedDecision $d): array => [
+                        'title' => $d->title,
+                        'description' => $d->description,
+                        'confidence' => $d->confidence,
+                    ])
+                    ?->values() ?? [],
+            ),
             'tasks' => $this->whenLoaded(
                 'meetingSummary',
                 fn () => $this->meetingSummary
@@ -66,12 +83,19 @@ class UploadResource extends JsonResource
                     ?->map(fn (ExtractedTask $t): string => $t->task_text)
                     ?->values() ?? [],
             ),
-            'chunks' => $this->whenLoaded(
-                'knowledgeChunks',
-                fn () => $this->knowledgeChunks->map(fn (KnowledgeChunk $chunk): array => [
-                    'content' => $chunk->content,
-                    'metadata' => $chunk->metadata,
-                ]),
+            'task_items' => $this->whenLoaded(
+                'meetingSummary',
+                fn () => $this->meetingSummary
+                    ?->extractedTasks
+                    ?->map(fn (ExtractedTask $t): array => [
+                        'title' => $t->title,
+                        'description' => $t->description,
+                        'category' => $t->category,
+                        'priority' => $t->priority,
+                        'assignee' => $t->assignee,
+                        'status' => $t->status,
+                    ])
+                    ?->values() ?? [],
             ),
             'download_url' => route('api.v1.uploads.download', $this->resource),
             'created_at' => $this->created_at,

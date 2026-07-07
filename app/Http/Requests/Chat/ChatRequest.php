@@ -50,6 +50,7 @@ class ChatRequest extends FormRequest
             'question' => ['required', 'string', 'max:5000'],
             'context' => ['sometimes', 'array'],
             'context.*' => ['required', 'string'],
+            'top_k' => ['sometimes', 'integer', 'min:1', 'max:20'],
         ];
     }
 }

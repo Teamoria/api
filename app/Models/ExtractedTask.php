@@ -10,7 +10,16 @@ class ExtractedTask extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['meeting_summary_id', 'task_text'];
+    protected $fillable = [
+        'meeting_summary_id',
+        'task_text',
+        'title',
+        'description',
+        'category',
+        'priority',
+        'assignee',
+        'status',
+    ];
 
     public function meetingSummary(): BelongsTo
     {
