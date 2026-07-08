@@ -43,6 +43,7 @@ return [
 
     'ai' => [
         'base_url' => env('AI_SERVICE_URL', 'https://ai.teamoria.online'),
+        'chat_endpoint' => env('AI_CHAT_ENDPOINT'),
         'api_key' => env('AI_SERVICE_API_KEY'),
         'timeout' => env('AI_SERVICE_TIMEOUT', 120),
     ],

@@ -79,4 +79,9 @@ class User extends Authenticatable
             ->withPivot(['access_level', 'granted_by'])
             ->withTimestamps();
     }
+
+    public function chatSessions(): HasMany
+    {
+        return $this->hasMany(ChatSession::class);
+    }
 }

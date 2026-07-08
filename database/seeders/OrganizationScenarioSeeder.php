@@ -2,7 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Enums\BillingCycle;
 use App\Enums\CompanyStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Enums\PlanStatus;
+use App\Enums\SubscriptionStatus;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Models\Company;
@@ -39,7 +44,7 @@ class OrganizationScenarioSeeder extends Seeder
                 'max_members' => 10,
                 'max_storage_mb' => 5120,
                 'has_ai_features' => false,
-                'status' => 'active',
+                'status' => PlanStatus::ACTIVE,
             ],
             'business' => [
                 'name' => 'Business',
@@ -50,18 +55,18 @@ class OrganizationScenarioSeeder extends Seeder
                 'max_members' => 50,
                 'max_storage_mb' => 51200,
                 'has_ai_features' => true,
-                'status' => 'active',
+                'status' => PlanStatus::ACTIVE,
             ],
             'enterprise' => [
                 'name' => 'Enterprise Legacy',
-                'description' => 'An inactive legacy plan retained for billing history.',
+                'description' => 'An archived legacy plan retained for billing history.',
                 'price_monthly' => 199,
                 'price_yearly' => 1990,
                 'max_projects' => 500,
                 'max_members' => 1000,
                 'max_storage_mb' => 512000,
                 'has_ai_features' => true,
-                'status' => 'inactive',
+                'status' => PlanStatus::ARCHIVED,
             ],
         ];
 
@@ -243,7 +248,8 @@ class OrganizationScenarioSeeder extends Seeder
                 'plan_id' => $plans['business']->id,
             ],
             [
-                'status' => 'active',
+                'billing_cycle' => BillingCycle::YEARLY,
+                'status' => SubscriptionStatus::ACTIVE,
                 'trial_ends_at' => now()->subMonths(2),
                 'starts_at' => now()->subMonths(2),
                 'ends_at' => now()->addMonths(10),
@@ -256,7 +262,8 @@ class OrganizationScenarioSeeder extends Seeder
                 'plan_id' => $plans['starter']->id,
             ],
             [
-                'status' => 'past_due',
+                'billing_cycle' => BillingCycle::MONTHLY,
+                'status' => SubscriptionStatus::PAST_DUE,
                 'trial_ends_at' => now()->subMonths(3),
                 'starts_at' => now()->subMonths(3),
                 'ends_at' => now()->subDays(5),
@@ -269,7 +276,8 @@ class OrganizationScenarioSeeder extends Seeder
                 'plan_id' => $plans['enterprise']->id,
             ],
             [
-                'status' => 'cancelled',
+                'billing_cycle' => BillingCycle::YEARLY,
+                'status' => SubscriptionStatus::CANCELED,
                 'trial_ends_at' => null,
                 'starts_at' => now()->subYear(),
                 'ends_at' => now()->subMonth(),
@@ -282,8 +290,8 @@ class OrganizationScenarioSeeder extends Seeder
                 'subscription_id' => $activeSubscription->id,
                 'company_id' => $companies['active']->id,
                 'amount' => 49,
-                'method' => 'credit_card',
-                'status' => 'paid',
+                'method' => PaymentMethod::BANK_TRANSFER,
+                'status' => PaymentStatus::COMPLETED,
                 'notes' => 'A successfully confirmed monthly payment.',
                 'paid_at' => now()->subMonth(),
                 'confirmed_at' => now()->subMonth()->addMinutes(2),
@@ -293,8 +301,8 @@ class OrganizationScenarioSeeder extends Seeder
                 'subscription_id' => $activeSubscription->id,
                 'company_id' => $companies['active']->id,
                 'amount' => 49,
-                'method' => 'bank_transfer',
-                'status' => 'pending',
+                'method' => PaymentMethod::BANK_TRANSFER,
+                'status' => PaymentStatus::PENDING,
                 'notes' => 'A transfer awaiting confirmation.',
                 'paid_at' => null,
                 'confirmed_at' => null,
@@ -304,9 +312,9 @@ class OrganizationScenarioSeeder extends Seeder
                 'subscription_id' => $pastDueSubscription->id,
                 'company_id' => $companies['suspended']->id,
                 'amount' => 19,
-                'method' => 'credit_card',
-                'status' => 'failed',
-                'notes' => 'The card was declined.',
+                'method' => PaymentMethod::CASH,
+                'status' => PaymentStatus::REJECTED,
+                'notes' => 'The cash payment could not be verified.',
                 'paid_at' => null,
                 'confirmed_at' => null,
             ],
@@ -315,9 +323,9 @@ class OrganizationScenarioSeeder extends Seeder
                 'subscription_id' => $cancelledSubscription->id,
                 'company_id' => $companies['inactive']->id,
                 'amount' => 199,
-                'method' => 'bank_transfer',
-                'status' => 'refunded',
-                'notes' => 'The final payment was refunded after cancellation.',
+                'method' => PaymentMethod::BANK_TRANSFER,
+                'status' => PaymentStatus::REJECTED,
+                'notes' => 'The final payment was rejected after cancellation.',
                 'paid_at' => now()->subMonths(2),
                 'confirmed_at' => now()->subMonths(2)->addDay(),
             ],

@@ -1,6 +1,9 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Http\Controllers\Api\V1\Admin\AdminPaymentController;
+use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
+use App\Http\Controllers\Api\V1\Admin\AdminSubscriptionController;
 use App\Http\Controllers\Api\V1\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
@@ -15,6 +18,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\SubscriptionController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -31,7 +35,7 @@ Route::get('/health', function () {
         'success' => true,
         'message' => 'API is healthy.',
         'data' => [
-            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2).' ms',
+            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2) . ' ms',
         ],
     ]);
 })->name('api.health');
@@ -88,9 +92,11 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
         Route::prefix('chat')
             ->name('chat.')
             ->controller(ChatController::class)
+            ->middleware('subscription.limit:ai_chat')
             ->group(function () {
-                Route::post('/', 'ask')->name('ask');
+                Route::post('/messages', 'sendMessage')->name('messages.store');
                 Route::get('/sessions', 'sessions')->name('sessions');
+                Route::get('/sessions/{session}/messages', 'getMessages')->name('sessions.messages');
             });
 
         Route::prefix('uploads')
@@ -121,6 +127,13 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                 Route::delete('/{notification}', 'destroy')->name('destroy');
             });
 
+        Route::prefix('billing')
+            ->name('billing.')
+            ->controller(SubscriptionController::class)
+            ->group(function () {
+                Route::get('/plans', 'indexPlans')->name('plans.index');
+            });
+
         /*
         |------------------------------------------------------------------
         | Platform Administration
@@ -129,7 +142,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
         Route::prefix('admin')
             ->name('admin.')
-            ->middleware('role:'.UserRole::ADMIN->value)
+            ->middleware('role:' . UserRole::ADMIN->value)
             ->group(function () {
                 Route::get('dashboard', DashboardController::class)->name('dashboard');
 
@@ -151,6 +164,25 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     Route::delete('/{id}', 'destroy')->name('destroy');
                     Route::patch('/{id}/restore', 'restore')->name('restore');
                     Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                });
+
+                Route::prefix('plans')->name('plans.')->controller(AdminPlanController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{plan}', 'show')->name('show');
+                    Route::put('/{plan}', 'update')->name('update');
+                    Route::patch('/{plan}', 'update')->name('patch');
+                    Route::delete('/{plan}', 'destroy')->name('destroy');
+                });
+
+                Route::prefix('subscriptions')->name('subscriptions.')->controller(AdminSubscriptionController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::patch('/{subscription}/cancel', 'cancel')->name('cancel');
+                });
+
+                Route::prefix('payments')->name('payments.')->controller(AdminPaymentController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::patch('/{payment}/confirm', 'confirm')->name('confirm');
                 });
 
                 Route::prefix('projects')->name('projects.')->controller(ProjectController::class)->group(function () {
@@ -197,19 +229,27 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
         Route::prefix('company')->name('company.')->group(function () {
             Route::post('register', [RegisterController::class, 'registerCompany'])
-                ->middleware('role:'.UserRole::COMPANY_OWNER->value)
+                ->middleware('role:' . UserRole::COMPANY_OWNER->value)
                 ->name('register');
 
             Route::middleware('check-company')->group(function () {
                 Route::get('dashboard', DashboardController::class)->name('dashboard');
 
+                Route::prefix('subscription')
+                    ->name('subscription.')
+                    ->controller(SubscriptionController::class)
+                    ->group(function () {
+                        Route::get('/', 'mySubscription')->name('show');
+                        Route::post('/', 'subscribe')->name('store');
+                    });
+
                 Route::prefix('staff')
                     ->name('staff.')
-                    ->middleware('role:'.UserRole::COMPANY_OWNER->value)
+                    ->middleware('role:' . UserRole::COMPANY_OWNER->value)
                     ->controller(StaffController::class)
                     ->group(function () {
                         Route::get('/', 'index')->name('index');
-                        Route::post('/', 'store')->name('store');
+                        Route::post('/', 'store')->middleware('subscription.limit:members')->name('store');
                         Route::get('/{id}', 'show')->name('show');
                         Route::put('/{id}', 'update')->name('update');
                         Route::delete('/{id}', 'destroy')->name('destroy');
@@ -219,7 +259,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
                 Route::prefix('projects')->name('projects.')->controller(ProjectController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
-                    Route::post('/', 'store')->name('store');
+                    Route::post('/', 'store')->middleware('subscription.limit:projects')->name('store');
                     Route::get('/{id}', 'show')->name('show');
                     Route::put('/{id}', 'update')->name('update');
                     Route::delete('/{id}', 'destroy')->name('destroy');
