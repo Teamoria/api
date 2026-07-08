@@ -80,8 +80,9 @@ it('stores the user message and queues ai processing', function () {
         ->and($message->role)->toBe(MessageRole::USER)
         ->and($message->content)->toBe('What did the team decide?');
 
-    Queue::assertPushed(ProcessAiChatJob::class, fn (ProcessAiChatJob $job): bool => $job->chatSession->is($session)
-        && $job->userMessage->is($message));
+    Queue::assertPushed(ProcessAiChatJob::class, fn (ProcessAiChatJob $job): bool => $job->session->is($session)
+        && $job->message === 'What did the team decide?'
+        && $job->currentMessageId === $message->id);
 });
 
 it('stores messages against an existing session', function () {

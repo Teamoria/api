@@ -5,32 +5,71 @@ use App\Events\AiResponseReceived;
 use App\Jobs\ProcessAiChatJob;
 use App\Models\ChatMessage;
 use App\Models\ChatSession;
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
-it('stores a mocked ai response and dispatches the broadcast event', function () {
-    $user = User::factory()->create();
+it('sends chat context to the ai service and broadcasts the reply', function () {
+    config()->set('services.ai.chat_endpoint', 'https://ai.example.test/api/v1/chat');
+    config()->set('services.ai.api_key', 'internal-ai-key');
+    config()->set('services.ai.timeout', 30);
+
+    $company = Company::factory()->create();
+    $user = User::factory()->for($company)->create();
     $session = ChatSession::factory()->for($user)->create();
-    $userMessage = ChatMessage::factory()->for($session)->create([
-        'role' => MessageRole::USER,
-        'content' => 'Summarize the latest meeting.',
+    $historyMessage = ChatMessage::factory()->for($session)->create([
+        'role' => MessageRole::AI,
+        'content' => 'Welcome back. What can I help with?',
+        'created_at' => now()->subMinute(),
     ]);
 
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://ai.example.test/api/v1/chat' => Http::response([
+            'status' => 'success',
+            'data' => [
+                'reply' => 'Here is the API-powered answer.',
+            ],
+        ]),
+    ]);
     Event::fake([AiResponseReceived::class]);
 
-    (new ProcessAiChatJob($session, $userMessage))->handle();
+    (new ProcessAiChatJob($session, 'Hello API'))->handle();
+
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+        && $request->url() === 'https://ai.example.test/api/v1/chat'
+        && $request->hasHeader('X-Internal-API-Key', 'internal-ai-key')
+        && $request->hasHeader('X-User-Id', $user->id)
+        && $request['user_id'] === $user->id
+        && $request['company_id'] === $company->id
+        && $request['message'] === 'Hello API'
+        && $request['chat_history'] === [
+            [
+                'role' => 'assistant',
+                'content' => 'Welcome back. What can I help with?',
+            ],
+        ]);
+    Http::assertSentCount(1);
 
     $aiMessage = ChatMessage::query()
+        ->whereBelongsTo($session)
         ->where('role', MessageRole::AI)
+        ->where('content', 'Here is the API-powered answer.')
         ->sole();
 
     expect($aiMessage->chat_session_id)->toBe($session->id)
-        ->and($aiMessage->content)->toBe('Mock AI response for: Summarize the latest meeting.');
+        ->and($aiMessage->created_at->greaterThan($historyMessage->created_at))->toBeTrue();
 
-    Event::assertDispatched(AiResponseReceived::class, fn (AiResponseReceived $event): bool => $event->message->is($aiMessage));
+    Event::assertDispatched(
+        AiResponseReceived::class,
+        fn (AiResponseReceived $event): bool => $event->message->is($aiMessage)
+            && $event->broadcastWith()['message']['content'] === 'Here is the API-powered answer.',
+    );
 });
 
 it('broadcasts the ai message on the users private chat channel', function () {

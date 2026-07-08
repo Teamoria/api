@@ -36,7 +36,7 @@ class ChatController extends Controller
 
         [$session, $message] = $result;
 
-        ProcessAiChatJob::dispatch($session, $message);
+        ProcessAiChatJob::dispatch($session, $message->content, $message);
 
         return $this->successResponse(
             [
