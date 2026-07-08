@@ -54,9 +54,9 @@ it('sends chat context to the ai service and broadcasts the reply', function () 
         && $request->url() === 'https://ai.example.test/api/v1/chat'
         && $request->hasHeader('X-Internal-API-Key', 'internal-ai-key')
         && $request->hasHeader('X-User-Id', $user->id)
-        && $request['user_id'] === $user->id
-        && $request['company_id'] === $company->id
-        && $request['project_id'] === $project->id
+        && $request['user_id'] === (string) $user->id
+        && $request['company_id'] === (string) $company->id
+        && $request['project_id'] === (string) $project->id
         && $request['message'] === 'Hello API'
         && $request['chat_history'] === [
             [

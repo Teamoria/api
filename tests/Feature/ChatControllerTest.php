@@ -176,6 +176,8 @@ it('fetches chat sessions from the database', function () {
 
 it('fetches chat session messages with cursor pagination in oldest order', function () {
     $user = User::factory()->create();
+    grantActiveSubscription($user->company);
+
     $session = ChatSession::factory()->for($user)->create();
 
     foreach (range(1, 31) as $index) {
@@ -204,6 +206,8 @@ it('fetches chat session messages with cursor pagination in oldest order', funct
 it('prevents users from fetching another users chat messages', function () {
     $owner = User::factory()->create();
     $intruder = User::factory()->create();
+    grantActiveSubscription($intruder->company);
+
     $session = ChatSession::factory()->for($owner)->create();
 
     Sanctum::actingAs($intruder);
