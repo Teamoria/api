@@ -4,6 +4,7 @@ use App\Exceptions\ApiException;
 use App\Http\Middleware\CheckApiKey;
 use App\Http\Middleware\CheckCompany;
 use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\CheckSubscriptionLimits;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'check-api-key' => CheckApiKey::class,
             'role' => CheckRole::class,
             'check-company' => CheckCompany::class,
+            'subscription.limit' => CheckSubscriptionLimits::class,
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {

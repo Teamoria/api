@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Payment extends Model
 {
     use HasUuids;
+
+    protected $attributes = [
+        'method' => PaymentMethod::BANK_TRANSFER->value,
+        'status' => PaymentStatus::PENDING->value,
+    ];
+
     protected $fillable = [
         'subscription_id',
         'company_id',
@@ -25,6 +33,8 @@ class Payment extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'method' => PaymentMethod::class,
+            'status' => PaymentStatus::class,
             'paid_at' => 'datetime',
             'confirmed_at' => 'datetime',
         ];

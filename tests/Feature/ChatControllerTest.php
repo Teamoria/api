@@ -31,7 +31,10 @@ it('requires authentication to ask a chat question', function () {
 });
 
 it('validates the required chat question fields', function () {
-    Sanctum::actingAs(User::factory()->create());
+    $user = User::factory()->create();
+    grantActiveSubscription($user->company);
+
+    Sanctum::actingAs($user);
 
     $this->postJson(
         route('api.v1.chat.ask'),
@@ -48,6 +51,8 @@ it('sends chat questions to the ai service', function () {
     $user = User::factory()->create([
         'role' => UserRole::COMPANY_MANAGER,
     ]);
+    grantActiveSubscription($user->company);
+
     $project = Project::query()->create([
         'company_id' => $user->company_id,
         'name' => 'Chat project',
@@ -98,6 +103,8 @@ it('prevents company users from asking about inaccessible projects', function ()
     $user = User::factory()->create([
         'role' => UserRole::COMPANY_MANAGER,
     ]);
+    grantActiveSubscription($user->company);
+
     $project = Project::query()->create([
         'company_id' => $user->company_id,
         'name' => 'Unassigned project',

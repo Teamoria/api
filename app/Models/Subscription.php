@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\BillingCycle;
+use App\Enums\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,9 +12,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Subscription extends Model
 {
     use HasUuids;
+
+    protected $attributes = [
+        'billing_cycle' => BillingCycle::MONTHLY->value,
+        'status' => SubscriptionStatus::TRIALING->value,
+    ];
+
     protected $fillable = [
         'company_id',
         'plan_id',
+        'billing_cycle',
         'status',
         'trial_ends_at',
         'starts_at',
@@ -22,6 +31,8 @@ class Subscription extends Model
     protected function casts(): array
     {
         return [
+            'billing_cycle' => BillingCycle::class,
+            'status' => SubscriptionStatus::class,
             'trial_ends_at' => 'datetime',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',

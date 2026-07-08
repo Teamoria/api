@@ -1,5 +1,11 @@
 <?php
 
+use App\Enums\BillingCycle;
+use App\Enums\PlanStatus;
+use App\Enums\SubscriptionStatus;
+use App\Models\Company;
+use App\Models\Plan;
+use App\Models\Subscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -43,6 +49,34 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+function grantActiveSubscription(
+    Company $company,
+    bool $hasAiFeatures = true,
+    int $maxProjects = 10,
+    int $maxMembers = 10,
+): Subscription {
+    $plan = Plan::query()->create([
+        'name' => fake()->unique()->words(2, true),
+        'description' => 'Test subscription plan.',
+        'price_monthly' => 10,
+        'price_yearly' => 100,
+        'max_projects' => $maxProjects,
+        'max_members' => $maxMembers,
+        'max_storage_mb' => 1024,
+        'has_ai_features' => $hasAiFeatures,
+        'status' => PlanStatus::ACTIVE,
+    ]);
+
+    return Subscription::query()->create([
+        'company_id' => $company->id,
+        'plan_id' => $plan->id,
+        'billing_cycle' => BillingCycle::MONTHLY,
+        'status' => SubscriptionStatus::ACTIVE,
+        'starts_at' => now()->subDay(),
+        'ends_at' => now()->addMonth(),
+    ]);
+}
 
 function something()
 {
