@@ -35,7 +35,7 @@ Route::get('/health', function () {
         'success' => true,
         'message' => 'API is healthy.',
         'data' => [
-            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2).' ms',
+            'speed' => round((microtime(true) * 1000) - (request()->server->get('REQUEST_TIME_FLOAT') * 1000), 2) . ' ms',
         ],
     ]);
 })->name('api.health');
@@ -92,9 +92,11 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
         Route::prefix('chat')
             ->name('chat.')
             ->controller(ChatController::class)
+            ->middleware('subscription.limit:ai_chat')
             ->group(function () {
-                Route::post('/', 'ask')->middleware('subscription.limit:ai_chat')->name('ask');
+                Route::post('/messages', 'sendMessage')->name('messages.store');
                 Route::get('/sessions', 'sessions')->name('sessions');
+                Route::get('/sessions/{session}/messages', 'getMessages')->name('sessions.messages');
             });
 
         Route::prefix('uploads')
@@ -140,7 +142,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
         Route::prefix('admin')
             ->name('admin.')
-            ->middleware('role:'.UserRole::ADMIN->value)
+            ->middleware('role:' . UserRole::ADMIN->value)
             ->group(function () {
                 Route::get('dashboard', DashboardController::class)->name('dashboard');
 
@@ -227,7 +229,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
         Route::prefix('company')->name('company.')->group(function () {
             Route::post('register', [RegisterController::class, 'registerCompany'])
-                ->middleware('role:'.UserRole::COMPANY_OWNER->value)
+                ->middleware('role:' . UserRole::COMPANY_OWNER->value)
                 ->name('register');
 
             Route::middleware('check-company')->group(function () {
@@ -243,7 +245,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
                 Route::prefix('staff')
                     ->name('staff.')
-                    ->middleware('role:'.UserRole::COMPANY_OWNER->value)
+                    ->middleware('role:' . UserRole::COMPANY_OWNER->value)
                     ->controller(StaffController::class)
                     ->group(function () {
                         Route::get('/', 'index')->name('index');

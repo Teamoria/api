@@ -67,4 +67,9 @@ class Project extends Model
     {
         return $this->hasMany(KnowledgeChunk::class);
     }
+
+    public function chatSessions(): HasMany
+    {
+        return $this->hasMany(ChatSession::class);
+    }
 }
