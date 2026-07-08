@@ -55,12 +55,15 @@ class ProcessUploadJob implements ShouldQueue
                 'X-User-Id' => $this->upload->user_id,
                 'X-User-Role' => $this->upload->user?->role?->value ?? 'user',
             ]))
-            ->post('/api/v1/extractions/process', array_filter([
+            ->asMultipart()
+            ->attach(
+                'file',
+                Storage::disk('local')->get($this->upload->file_path),
+                $this->upload->file_name,
+            )
+            ->post('/api/v1/uploads/process-file', [
                 'upload_id' => (string) $this->upload->id,
-                'project_id' => $this->upload->project_id ? (string) $this->upload->project_id : null,
-                'file_path' => $this->upload->file_path,
-                'file_url' => $this->generateFileUrl(),
-            ]))
+            ])
             ->throw();
 
         /**
@@ -149,33 +152,6 @@ class ProcessUploadJob implements ShouldQueue
                 ),
             );
         }
-
-        // [ARCHIVED] knowledge_chunks — FastAPI now handles Pinecone indexing internally.
-        // The indexed_chunk_count is stored on meeting_summaries instead.
-        // Keeping this code for potential future use if chunk storage moves back to Laravel.
-        //
-        // if (! empty($data['chunks'])) {
-        //     $this->upload->knowledgeChunks()->createMany(
-        //         array_map(
-        //             fn (array $chunk): array => [
-        //                 'project_id' => $this->upload->project_id,
-        //                 'content' => $chunk['content'],
-        //                 'embedding' => $chunk['embedding'] ?? null,
-        //                 'metadata' => $chunk['metadata'] ?? null,
-        //             ],
-        //             $data['chunks'],
-        //         ),
-        //     );
-        // }
-    }
-
-    private function generateFileUrl(): ?string
-    {
-        if (! Storage::disk('local')->exists($this->upload->file_path)) {
-            return null;
-        }
-
-        return url(Storage::disk('local')->url($this->upload->file_path));
     }
 
     public function failed(?\Throwable $exception): void
