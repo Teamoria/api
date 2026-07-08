@@ -1,6 +1,9 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Http\Controllers\Api\V1\Admin\AdminPaymentController;
+use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
+use App\Http\Controllers\Api\V1\Admin\AdminSubscriptionController;
 use App\Http\Controllers\Api\V1\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
@@ -15,6 +18,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\SubscriptionController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -121,6 +125,13 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                 Route::delete('/{notification}', 'destroy')->name('destroy');
             });
 
+        Route::prefix('billing')
+            ->name('billing.')
+            ->controller(SubscriptionController::class)
+            ->group(function () {
+                Route::get('/plans', 'indexPlans')->name('plans.index');
+            });
+
         /*
         |------------------------------------------------------------------
         | Platform Administration
@@ -151,6 +162,25 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     Route::delete('/{id}', 'destroy')->name('destroy');
                     Route::patch('/{id}/restore', 'restore')->name('restore');
                     Route::delete('/{id}/force-delete', 'forceDelete')->name('force-delete');
+                });
+
+                Route::prefix('plans')->name('plans.')->controller(AdminPlanController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{plan}', 'show')->name('show');
+                    Route::put('/{plan}', 'update')->name('update');
+                    Route::patch('/{plan}', 'update')->name('patch');
+                    Route::delete('/{plan}', 'destroy')->name('destroy');
+                });
+
+                Route::prefix('subscriptions')->name('subscriptions.')->controller(AdminSubscriptionController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::patch('/{subscription}/cancel', 'cancel')->name('cancel');
+                });
+
+                Route::prefix('payments')->name('payments.')->controller(AdminPaymentController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::patch('/{payment}/confirm', 'confirm')->name('confirm');
                 });
 
                 Route::prefix('projects')->name('projects.')->controller(ProjectController::class)->group(function () {
@@ -202,6 +232,14 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
             Route::middleware('check-company')->group(function () {
                 Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+                Route::prefix('subscription')
+                    ->name('subscription.')
+                    ->controller(SubscriptionController::class)
+                    ->group(function () {
+                        Route::get('/', 'mySubscription')->name('show');
+                        Route::post('/', 'subscribe')->name('store');
+                    });
 
                 Route::prefix('staff')
                     ->name('staff.')
