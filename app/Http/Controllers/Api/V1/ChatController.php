@@ -2,59 +2,85 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\MessageRole;
 use App\Http\Controllers\Api\Controller;
-use App\Http\Requests\Chat\ChatRequest;
+use App\Http\Requests\Chat\SendChatMessageRequest;
+use App\Jobs\ProcessAiChatJob;
+use App\Models\ChatMessage;
+use App\Models\ChatSession;
 use App\Models\User;
-use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 
 class ChatController extends Controller
 {
-    public function ask(ChatRequest $request): JsonResponse
+    public function sendMessage(SendChatMessageRequest $request): JsonResponse
     {
+        /** @var array{session_id?: string|null, project_id?: string|null, message_content: string} $validated */
         $validated = $request->validated();
 
-        $response = $this->aiClient($request)
-            ->post('/api/v1/retrieval/query', [
-                'project_id' => $validated['project_id'],
-                'question' => $validated['question'],
-                'top_k' => $validated['top_k'] ?? 5,
-            ])
-            ->throw();
+        /** @var User $user */
+        $user = $request->user();
+
+        /** @var array{0: ChatSession, 1: ChatMessage} $result */
+        $result = DB::transaction(function () use ($user, $validated): array {
+            $session = $this->resolveChatSession($user, $validated);
+            $message = $session->messages()->create([
+                'role' => MessageRole::USER,
+                'content' => $validated['message_content'],
+            ]);
+
+            return [$session, $message];
+        });
+
+        [$session, $message] = $result;
+
+        ProcessAiChatJob::dispatch($session, $message);
 
         return $this->successResponse(
-            $response->json(),
-            'Chat response fetched successfully.',
+            [
+                'session_id' => $session->id,
+                'message_id' => $message->id,
+                'status' => 'processing',
+            ],
+            'Message is being processed.',
         );
     }
 
     public function sessions(Request $request): JsonResponse
     {
-        $response = $this->aiClient($request)
-            ->get('/api/v1/chat/sessions')
-            ->throw();
+        /** @var User $user */
+        $user = $request->user();
+
+        $sessions = $user->chatSessions()
+            ->with([
+                'project:id,name',
+                'messages' => fn ($query) => $query->oldest(),
+            ])
+            ->latest()
+            ->get();
 
         return $this->successResponse(
-            $response->json(),
+            $sessions,
             'Chat sessions fetched successfully.',
         );
     }
 
-    private function aiClient(Request $request): PendingRequest
+    /**
+     * @param  array{session_id?: string|null, project_id?: string|null, message_content: string}  $validated
+     */
+    private function resolveChatSession(User $user, array $validated): ChatSession
     {
-        /** @var User $user */
-        $user = $request->user();
+        if (! empty($validated['session_id'])) {
+            return ChatSession::query()
+                ->whereBelongsTo($user)
+                ->findOrFail($validated['session_id']);
+        }
 
-        return Http::baseUrl(config('services.ai.base_url'))
-            ->timeout((int) config('services.ai.timeout', 120))
-            ->connectTimeout(10)
-            ->retry(2, 1000)
-            ->withHeaders(array_filter([
-                'X-Internal-API-Key' => config('services.ai.api_key'),
-                'X-User-Id' => $user->id,
-                'X-User-Role' => $user->role->value,
-            ]));
+        return ChatSession::query()->create([
+            'user_id' => $user->id,
+            'project_id' => $validated['project_id'] ?? null,
+        ]);
     }
 }

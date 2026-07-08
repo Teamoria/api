@@ -1,53 +1,47 @@
 <?php
 
+use App\Enums\MessageRole;
 use App\Enums\ProjectRole;
 use App\Enums\UserRole;
+use App\Jobs\ProcessAiChatJob;
+use App\Models\ChatMessage;
+use App\Models\ChatSession;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     config()->set('api.key', 'test-api-key');
-    config()->set('services.ai.base_url', 'https://ai.example.test');
-    config()->set('services.ai.api_key', 'internal-ai-key');
-    config()->set('services.ai.timeout', 30);
-
-    Http::preventStrayRequests();
 });
 
-it('requires authentication to ask a chat question', function () {
+it('requires authentication to send a chat message', function () {
     $this->postJson(
-        route('api.v1.chat.ask'),
+        route('api.v1.chat.messages.store'),
         [],
         chatApiHeaders(),
     )->assertUnauthorized();
-
-    Http::assertNothingSent();
 });
 
-it('validates the required chat question fields', function () {
+it('validates the required chat message fields', function () {
     $user = User::factory()->create();
     grantActiveSubscription($user->company);
 
     Sanctum::actingAs($user);
 
     $this->postJson(
-        route('api.v1.chat.ask'),
+        route('api.v1.chat.messages.store'),
         [],
         chatApiHeaders(),
     )
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['project_id', 'question'], 'data');
-
-    Http::assertNothingSent();
+        ->assertJsonValidationErrors(['message_content'], 'data');
 });
 
-it('sends chat questions to the ai service', function () {
+it('stores the user message and queues ai processing', function () {
     $user = User::factory()->create([
         'role' => UserRole::COMPANY_MANAGER,
     ]);
@@ -60,46 +54,62 @@ it('sends chat questions to the ai service', function () {
     $project->users()->attach($user, [
         'role' => ProjectRole::MANAGER->value,
     ]);
-    $payload = [
-        'project_id' => $project->id,
-        'question' => 'What did the team decide?',
-    ];
-    $aiResponse = [
-        'project_id' => $project->id,
-        'question' => 'What did the team decide?',
-        'answer' => 'The team decided to connect Laravel to FastAPI.',
-        'sources' => [],
-    ];
 
-    Http::fake([
-        'https://ai.example.test/api/v1/retrieval/query' => Http::response($aiResponse),
-    ]);
+    Queue::fake();
     Sanctum::actingAs($user);
 
     $this->postJson(
-        route('api.v1.chat.ask'),
-        $payload,
+        route('api.v1.chat.messages.store'),
+        [
+            'project_id' => $project->id,
+            'message_content' => 'What did the team decide?',
+        ],
         chatApiHeaders(),
     )
         ->assertOk()
-        ->assertExactJson([
-            'success' => true,
-            'message' => 'Chat response fetched successfully.',
-            'data' => $aiResponse,
-        ]);
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('message', 'Message is being processed.')
+        ->assertJsonPath('data.status', 'processing');
 
-    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
-        && $request->url() === 'https://ai.example.test/api/v1/retrieval/query'
-        && $request->hasHeader('X-Internal-API-Key', 'internal-ai-key')
-        && $request->hasHeader('X-User-Id', $user->id)
-        && $request->hasHeader('X-User-Role', UserRole::COMPANY_MANAGER->value)
-        && $request['project_id'] === $project->id
-        && $request['question'] === 'What did the team decide?'
-        && $request['top_k'] === 5);
-    Http::assertSentCount(1);
+    $session = ChatSession::query()->sole();
+    $message = ChatMessage::query()->sole();
+
+    expect($session->user_id)->toBe($user->id)
+        ->and($session->project_id)->toBe($project->id)
+        ->and($message->chat_session_id)->toBe($session->id)
+        ->and($message->role)->toBe(MessageRole::USER)
+        ->and($message->content)->toBe('What did the team decide?');
+
+    Queue::assertPushed(ProcessAiChatJob::class, fn (ProcessAiChatJob $job): bool => $job->chatSession->is($session)
+        && $job->userMessage->is($message));
 });
 
-it('prevents company users from asking about inaccessible projects', function () {
+it('stores messages against an existing session', function () {
+    $user = User::factory()->create();
+    grantActiveSubscription($user->company);
+
+    $session = ChatSession::factory()->for($user)->create();
+
+    Queue::fake();
+    Sanctum::actingAs($user);
+
+    $this->postJson(route('api.v1.chat.messages.store'), [
+        'session_id' => $session->id,
+        'message_content' => 'Continue this conversation.',
+    ], chatApiHeaders())->assertOk();
+
+    expect(ChatSession::query()->count())->toBe(1);
+
+    $message = ChatMessage::query()->sole();
+
+    expect($message->chat_session_id)->toBe($session->id)
+        ->and($message->role)->toBe(MessageRole::USER)
+        ->and($message->content)->toBe('Continue this conversation.');
+
+    Queue::assertPushed(ProcessAiChatJob::class);
+});
+
+it('prevents company users from sending messages about inaccessible projects', function () {
     $user = User::factory()->create([
         'role' => UserRole::COMPANY_MANAGER,
     ]);
@@ -112,30 +122,44 @@ it('prevents company users from asking about inaccessible projects', function ()
 
     Sanctum::actingAs($user);
 
-    $this->postJson(route('api.v1.chat.ask'), [
+    Queue::fake();
+
+    $this->postJson(route('api.v1.chat.messages.store'), [
         'project_id' => $project->id,
-        'question' => 'What happened in this project?',
+        'message_content' => 'What happened in this project?',
     ], chatApiHeaders())->assertForbidden();
 
-    Http::assertNothingSent();
+    Queue::assertNothingPushed();
 });
 
-it('fetches chat sessions from the ai service', function () {
-    $user = User::factory()->create([
-        'role' => UserRole::ADMIN,
-    ]);
-    $aiResponse = [
-        'sessions' => [
-            [
-                'id' => 'session-123',
-                'title' => 'Project decisions',
-            ],
-        ],
-    ];
+it('prevents users from sending messages to another users session', function () {
+    $owner = User::factory()->create();
+    $intruder = User::factory()->create();
+    grantActiveSubscription($intruder->company);
 
-    Http::fake([
-        'https://ai.example.test/api/v1/chat/sessions' => Http::response($aiResponse),
+    $session = ChatSession::factory()->for($owner)->create();
+
+    Queue::fake();
+    Sanctum::actingAs($intruder);
+
+    $this->postJson(route('api.v1.chat.messages.store'), [
+        'session_id' => $session->id,
+        'message_content' => 'Let me in.',
+    ], chatApiHeaders())->assertForbidden();
+
+    Queue::assertNothingPushed();
+});
+
+it('fetches chat sessions from the database', function () {
+    $user = User::factory()->create();
+    grantActiveSubscription($user->company);
+
+    $session = ChatSession::factory()->for($user)->create();
+    ChatMessage::factory()->for($session)->create([
+        'role' => MessageRole::USER,
+        'content' => 'What did we decide?',
     ]);
+
     Sanctum::actingAs($user);
 
     $this->getJson(
@@ -143,18 +167,10 @@ it('fetches chat sessions from the ai service', function () {
         chatApiHeaders(),
     )
         ->assertOk()
-        ->assertExactJson([
-            'success' => true,
-            'message' => 'Chat sessions fetched successfully.',
-            'data' => $aiResponse,
-        ]);
-
-    Http::assertSent(fn (Request $request): bool => $request->method() === 'GET'
-        && $request->url() === 'https://ai.example.test/api/v1/chat/sessions'
-        && $request->hasHeader('X-Internal-API-Key', 'internal-ai-key')
-        && $request->hasHeader('X-User-Id', $user->id)
-        && $request->hasHeader('X-User-Role', UserRole::ADMIN->value));
-    Http::assertSentCount(1);
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('message', 'Chat sessions fetched successfully.')
+        ->assertJsonPath('data.0.id', $session->id)
+        ->assertJsonPath('data.0.messages.0.content', 'What did we decide?');
 });
 
 function chatApiHeaders(): array
