@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a44b5c2d-5af1-4c82-a9d2-664de7ea0f51",
     "name": "Teamoria API - v1",
-    "description": "Share-ready Teamoria API collection.\n\nQuick start:\n1. Import this collection and `Teamoria.local.postman_environment.json`.\n2. Select the Teamoria Local environment and set `api_key`.\n3. Authenticate with an administrator account before using the Admin folder.\n4. Authenticate with a company account before using the Company folder.\n5. A new company_owner must run Company > Onboarding > Register First Company before using company-scoped endpoints.\n6. Admin project creation requires company_id; company project creation derives the company automatically.\n7. Set project_member_user_id/task_assignee_id/upload_shared_user_id to users from the selected project's company, or let the create-user scripts populate them when empty.\n\nAdmin endpoints have global platform access. Company endpoints remain isolated to the authenticated user's company. Integration scripts validate responses and store generated tokens and resource identifiers.\n\nNo production API keys, Sanctum tokens, or Google tokens are stored in this collection.",
+    "description": "Share-ready Teamoria API collection.\n\nQuick start:\n1. Import this collection and `Teamoria.local.postman_environment.json`.\n2. Select the Teamoria Local environment and set `api_key`.\n3. Authenticate with an administrator account before using the Admin folder.\n4. Authenticate with a company account before using the Company folder.\n5. A new company_owner must run Company > Onboarding > Register First Company before using company-scoped endpoints.\n6. Admin project creation requires company_id; company project creation derives the company automatically.\n7. Set project_member_user_id/task_assignee_id/upload_shared_user_id to users from the selected project's company, or let the create-user scripts populate them when empty.\n\nAdmin endpoints have global platform and billing access. Company endpoints remain isolated to the authenticated user's company. Integration scripts validate responses and store generated tokens and resource identifiers.\n\nNo production API keys, Sanctum tokens, or Google tokens are stored in this collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "28290355",
     "_collection_link": "https://go.postman.co/collection/28290355-a44b5c2d-5af1-4c82-a9d2-664de7ea0f51?source=collection_link"
@@ -3006,30 +3006,28 @@
         },
         {
           "name": "[2.8] AI Chat",
-          "description": "Authenticated administrator access to project-aware AI questions and personal chat sessions.",
           "item": [
             {
-              "name": "Ask AI About Project",
+              "name": "Send AI Chat Message",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('AI chat response is fetched', function () {",
+                      "pm.test('AI chat message is queued', function () {",
                       "    pm.response.to.have.status(200);",
                       "    const json = pm.response.json();",
                       "    pm.expect(json.success).to.eql(true);",
-                      "    pm.expect(json.data).to.be.an('object');",
+                      "    pm.expect(json.data).to.include.all.keys('session_id', 'message_id', 'status');",
+                      "    pm.expect(json.data.status).to.eql('processing');",
                       "});",
                       "",
                       "if (pm.response.code === 200) {",
                       "    const data = pm.response.json().data;",
                       "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
-                      "",
-                      "    if (data && data.session_id) {",
-                      "        scope.set('chat_session_id', data.session_id);",
-                      "    }",
+                      "    scope.set('chat_session_id', data.session_id);",
+                      "    scope.set('chat_message_id', data.message_id);",
                       "}"
                     ]
                   }
@@ -3038,27 +3036,28 @@
               "request": {
                 "method": "POST",
                 "header": [],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"question\": \"{{chat_question}}\",\n  \"context\": [\n    \"{{chat_context}}\"\n  ],\n  \"top_k\": {{chat_top_k}}\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
                 "url": {
-                  "raw": "{{api_origin}}/api/{{api_version}}/chat",
+                  "raw": "{{api_origin}}/api/{{api_version}}/chat/messages",
                   "host": [
                     "{{api_origin}}"
                   ],
                   "path": [
                     "api",
                     "{{api_version}}",
-                    "chat"
+                    "chat",
+                    "messages"
                   ]
                 },
-                "description": "Sends a project-scoped retrieval question to the configured AI service. Requires project_id, question, and a working AI service configuration; top_k controls retrieval breadth."
+                "description": "Creates or continues a chat session and queues the message for AI processing. Add session_id manually to continue an existing session.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"message_content\": \"{{chat_message}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
               },
               "response": []
             },
@@ -3074,9 +3073,16 @@
                       "    pm.response.to.have.status(200);",
                       "    const json = pm.response.json();",
                       "    pm.expect(json.success).to.eql(true);",
-                      "    pm.expect(json.data).to.have.property('sessions');",
-                      "    pm.expect(json.data.sessions).to.be.an('array');",
-                      "});"
+                      "    pm.expect(json.data).to.be.an('array');",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const sessions = pm.response.json().data || [];",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    if (sessions.length > 0 && sessions[0].id) {",
+                      "        scope.set('chat_session_id', sessions[0].id);",
+                      "    }",
+                      "}"
                     ]
                   }
                 }
@@ -3096,11 +3102,52 @@
                     "sessions"
                   ]
                 },
-                "description": "Returns AI chat sessions for the authenticated user identity forwarded to the configured AI service."
+                "description": "Returns chat sessions owned by the authenticated user."
+              },
+              "response": []
+            },
+            {
+              "name": "List AI Chat Session Messages",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('AI chat session messages are fetched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data).to.be.an('object');",
+                      "    pm.expect(json.data.data).to.be.an('array');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/chat/sessions/{{chat_session_id}}/messages",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "chat",
+                    "sessions",
+                    "{{chat_session_id}}",
+                    "messages"
+                  ]
+                },
+                "description": "Returns cursor-paginated messages for a chat session owned by the authenticated user."
               },
               "response": []
             }
-          ]
+          ],
+          "description": "Authenticated AI chat session and message operations for administrator workflows."
         },
         {
           "name": "[2.9] Notifications",
@@ -3322,9 +3369,491 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "[2.10] Plans",
+          "item": [
+            {
+              "name": "List Plans",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Plans are fetched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const plans = pm.response.json().data.plans || [];",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    if (plans.length > 0 && plans[0].id && !pm.variables.get('plan_id')) {",
+                      "        scope.set('plan_id', plans[0].id);",
+                      "    }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/plans?page={{plans_page}}",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "plans"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "{{plans_page}}"
+                    }
+                  ]
+                },
+                "description": "Returns paginated platform plans, including active and archived records."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Plan",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Plan is created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data).to.include.all.keys('id', 'name', 'price_monthly', 'price_yearly', 'max_projects', 'max_members', 'max_storage_mb', 'has_ai_features', 'status');",
+                      "});",
+                      "",
+                      "if (pm.response.code === 201) {",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    scope.set('plan_id', pm.response.json().data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/plans",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "plans"
+                  ]
+                },
+                "description": "Creates an active subscription plan and stores plan_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{test_plan_name}}\",\n  \"description\": \"Plan created from the Teamoria Postman collection.\",\n  \"price_monthly\": {{plan_price_monthly}},\n  \"price_yearly\": {{plan_price_yearly}},\n  \"max_projects\": {{plan_max_projects}},\n  \"max_members\": {{plan_max_members}},\n  \"max_storage_mb\": {{plan_max_storage_mb}},\n  \"has_ai_features\": {{plan_has_ai_features}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Plan",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Plan is fetched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data.id).to.eql(pm.variables.get('plan_id'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/plans/{{plan_id}}",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "plans",
+                    "{{plan_id}}"
+                  ]
+                },
+                "description": "Returns the selected plan."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Plan",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Plan is updated', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data.id).to.eql(pm.variables.get('plan_id'));",
+                      "    pm.expect(json.data.name).to.eql(pm.variables.get('updated_plan_name'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/plans/{{plan_id}}",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "plans",
+                    "{{plan_id}}"
+                  ]
+                },
+                "description": "Replaces editable plan fields.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{updated_plan_name}}\",\n  \"description\": \"Updated from the Teamoria Postman collection.\",\n  \"price_monthly\": {{plan_price_monthly}},\n  \"price_yearly\": {{plan_price_yearly}},\n  \"max_projects\": {{plan_max_projects}},\n  \"max_members\": {{plan_max_members}},\n  \"max_storage_mb\": {{plan_max_storage_mb}},\n  \"has_ai_features\": {{plan_has_ai_features}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Patch Plan",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Plan is patched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data.id).to.eql(pm.variables.get('plan_id'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/plans/{{plan_id}}",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "plans",
+                    "{{plan_id}}"
+                  ]
+                },
+                "description": "Partially updates editable plan fields.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"has_ai_features\": {{plan_has_ai_features}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Archive Plan",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Plan is archived', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data.status).to.eql('archived');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/plans/{{plan_id}}",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "plans",
+                    "{{plan_id}}"
+                  ]
+                },
+                "description": "Archives the selected plan by setting status=archived."
+              },
+              "response": []
+            }
+          ],
+          "description": "Platform plan management for subscription limits and billing prices."
+        },
+        {
+          "name": "[2.11] Subscriptions",
+          "item": [
+            {
+              "name": "List Subscriptions",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Subscriptions are fetched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const subscriptions = pm.response.json().data.subscriptions || [];",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    if (subscriptions.length > 0 && subscriptions[0].id && !pm.variables.get('subscription_id')) {",
+                      "        scope.set('subscription_id', subscriptions[0].id);",
+                      "    }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/subscriptions?page={{subscriptions_page}}&per_page={{subscriptions_per_page}}",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "subscriptions"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "{{subscriptions_page}}"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "{{subscriptions_per_page}}"
+                    },
+                    {
+                      "key": "status",
+                      "value": "{{subscription_status}}",
+                      "disabled": true,
+                      "description": "Optional: trialing, active, past_due, canceled."
+                    }
+                  ]
+                },
+                "description": "Returns paginated subscriptions with optional status filtering."
+              },
+              "response": []
+            },
+            {
+              "name": "Cancel Subscription",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Subscription is canceled', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data.id).to.eql(pm.variables.get('subscription_id'));",
+                      "    pm.expect(json.data.status).to.eql('canceled');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/subscriptions/{{subscription_id}}/cancel",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "subscriptions",
+                    "{{subscription_id}}",
+                    "cancel"
+                  ]
+                },
+                "description": "Cancels the selected subscription and ends it immediately."
+              },
+              "response": []
+            }
+          ],
+          "description": "Platform subscription inspection and administrative cancellation."
+        },
+        {
+          "name": "[2.12] Payments",
+          "item": [
+            {
+              "name": "List Pending Payments",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Pending payments are fetched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const payments = pm.response.json().data.payments || [];",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    if (payments.length > 0 && payments[0].id) {",
+                      "        scope.set('payment_id', payments[0].id);",
+                      "    }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/payments",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "payments"
+                  ]
+                },
+                "description": "Returns all pending subscription payments awaiting admin confirmation."
+              },
+              "response": []
+            },
+            {
+              "name": "Confirm Payment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Payment is confirmed', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data.payment.id).to.eql(pm.variables.get('payment_id'));",
+                      "    pm.expect(json.data.payment.status).to.eql('completed');",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const payment = pm.response.json().data.payment;",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    if (payment.subscription && payment.subscription.id) {",
+                      "        scope.set('subscription_id', payment.subscription.id);",
+                      "    }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/admin/payments/{{payment_id}}/confirm",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "admin",
+                    "payments",
+                    "{{payment_id}}",
+                    "confirm"
+                  ]
+                },
+                "description": "Marks the pending payment as completed and activates or extends the related subscription."
+              },
+              "response": []
+            }
+          ],
+          "description": "Administrative approval flow for pending subscription payments."
         }
       ],
-      "description": "Platform administration endpoints with global dashboard access and management of users, companies, projects, tasks, uploads, AI chat, and notifications.",
+      "description": "Platform administration endpoints with global dashboard access and management of users, companies, billing, projects, tasks, uploads, AI chat, and notifications.",
       "auth": {
         "type": "bearer",
         "bearer": [
@@ -5563,30 +6092,28 @@
         },
         {
           "name": "[3.8] AI Chat",
-          "description": "Authenticated company-user access to project-aware AI questions and personal chat sessions.",
           "item": [
             {
-              "name": "Ask AI About Project",
+              "name": "Send AI Chat Message",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('AI chat response is fetched', function () {",
+                      "pm.test('AI chat message is queued', function () {",
                       "    pm.response.to.have.status(200);",
                       "    const json = pm.response.json();",
                       "    pm.expect(json.success).to.eql(true);",
-                      "    pm.expect(json.data).to.be.an('object');",
+                      "    pm.expect(json.data).to.include.all.keys('session_id', 'message_id', 'status');",
+                      "    pm.expect(json.data.status).to.eql('processing');",
                       "});",
                       "",
                       "if (pm.response.code === 200) {",
                       "    const data = pm.response.json().data;",
                       "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
-                      "",
-                      "    if (data && data.session_id) {",
-                      "        scope.set('chat_session_id', data.session_id);",
-                      "    }",
+                      "    scope.set('chat_session_id', data.session_id);",
+                      "    scope.set('chat_message_id', data.message_id);",
                       "}"
                     ]
                   }
@@ -5595,27 +6122,28 @@
               "request": {
                 "method": "POST",
                 "header": [],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"question\": \"{{chat_question}}\",\n  \"context\": [\n    \"{{chat_context}}\"\n  ],\n  \"top_k\": {{chat_top_k}}\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
                 "url": {
-                  "raw": "{{api_origin}}/api/{{api_version}}/chat",
+                  "raw": "{{api_origin}}/api/{{api_version}}/chat/messages",
                   "host": [
                     "{{api_origin}}"
                   ],
                   "path": [
                     "api",
                     "{{api_version}}",
-                    "chat"
+                    "chat",
+                    "messages"
                   ]
                 },
-                "description": "Sends a project-scoped retrieval question to the configured AI service. Requires project_id, question, and a working AI service configuration; top_k controls retrieval breadth."
+                "description": "Creates or continues a chat session and queues the message for AI processing. Add session_id manually to continue an existing session.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"message_content\": \"{{chat_message}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
               },
               "response": []
             },
@@ -5631,9 +6159,16 @@
                       "    pm.response.to.have.status(200);",
                       "    const json = pm.response.json();",
                       "    pm.expect(json.success).to.eql(true);",
-                      "    pm.expect(json.data).to.have.property('sessions');",
-                      "    pm.expect(json.data.sessions).to.be.an('array');",
-                      "});"
+                      "    pm.expect(json.data).to.be.an('array');",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const sessions = pm.response.json().data || [];",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    if (sessions.length > 0 && sessions[0].id) {",
+                      "        scope.set('chat_session_id', sessions[0].id);",
+                      "    }",
+                      "}"
                     ]
                   }
                 }
@@ -5653,11 +6188,52 @@
                     "sessions"
                   ]
                 },
-                "description": "Returns AI chat sessions for the authenticated user identity forwarded to the configured AI service."
+                "description": "Returns chat sessions owned by the authenticated user."
+              },
+              "response": []
+            },
+            {
+              "name": "List AI Chat Session Messages",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('AI chat session messages are fetched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data).to.be.an('object');",
+                      "    pm.expect(json.data.data).to.be.an('array');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/chat/sessions/{{chat_session_id}}/messages",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "chat",
+                    "sessions",
+                    "{{chat_session_id}}",
+                    "messages"
+                  ]
+                },
+                "description": "Returns cursor-paginated messages for a chat session owned by the authenticated user."
               },
               "response": []
             }
-          ]
+          ],
+          "description": "Authenticated AI chat session and message operations for company workflows."
         },
         {
           "name": "[3.9] Notifications",
@@ -5879,9 +6455,159 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "[3.10] Subscription",
+          "item": [
+            {
+              "name": "List Available Plans",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Available plans are fetched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const plans = pm.response.json().data.plans || [];",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    if (plans.length > 0 && plans[0].id && !pm.variables.get('plan_id')) {",
+                      "        scope.set('plan_id', plans[0].id);",
+                      "    }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/billing/plans",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "billing",
+                    "plans"
+                  ]
+                },
+                "description": "Returns active billing plans available to authenticated users."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Company Subscription",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Company subscription is fetched', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const subscription = pm.response.json().data.subscription;",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    if (subscription && subscription.id) {",
+                      "        scope.set('subscription_id', subscription.id);",
+                      "    }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/company/subscription",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "company",
+                    "subscription"
+                  ]
+                },
+                "description": "Returns the active subscription for the authenticated user company, or null if none exists."
+              },
+              "response": []
+            },
+            {
+              "name": "Subscribe To Plan",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Subscription request is created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const json = pm.response.json();",
+                      "    pm.expect(json.success).to.eql(true);",
+                      "    pm.expect(json.data.payment).to.include.all.keys('id', 'amount', 'method', 'status');",
+                      "    pm.expect(json.data.payment.status).to.eql('pending');",
+                      "});",
+                      "",
+                      "if (pm.response.code === 201) {",
+                      "    const payment = pm.response.json().data.payment;",
+                      "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                      "    scope.set('payment_id', payment.id);",
+                      "    if (payment.subscription && payment.subscription.id) {",
+                      "        scope.set('subscription_id', payment.subscription.id);",
+                      "    }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{api_origin}}/api/{{api_version}}/company/subscription",
+                  "host": [
+                    "{{api_origin}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_version}}",
+                    "company",
+                    "subscription"
+                  ]
+                },
+                "description": "Creates a pending bank-transfer subscription payment request for the authenticated company.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"plan_id\": \"{{plan_id}}\",\n  \"billing_cycle\": \"{{billing_cycle}}\",\n  \"reference_number\": \"{{payment_reference_number}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "Company billing plan discovery, subscription request, and active subscription state."
         }
       ],
-      "description": "Company onboarding and tenant-scoped dashboard, staff, project, task, profile, upload, AI chat, and notification operations.",
+      "description": "Company onboarding and tenant-scoped dashboard, subscription, staff, project, task, profile, upload, AI chat, and notification operations.",
       "auth": {
         "type": "bearer",
         "bearer": [
@@ -5928,7 +6654,7 @@
         "requests": [],
         "exec": [
           "const requestPath = pm.request.url.getPath();",
-          "const isAiChatRequest = requestPath.endsWith('/api/v1/chat') || requestPath.endsWith('/api/v1/chat/sessions');",
+          "const isAiChatRequest = requestPath.includes('/api/v1/chat');",
           "const responseTimeVariable = isAiChatRequest ? 'ai_response_time_limit_ms' : 'response_time_limit_ms';",
           "const defaultResponseTimeLimit = isAiChatRequest ? 120000 : 2000;",
           "const responseTimeLimit = Number(pm.variables.get(responseTimeVariable) || defaultResponseTimeLimit);",
@@ -6235,6 +6961,82 @@
     {
       "key": "task_due_to",
       "value": "2026-12-31"
+    },
+    {
+      "key": "plans_page",
+      "value": "1"
+    },
+    {
+      "key": "plan_id",
+      "value": ""
+    },
+    {
+      "key": "test_plan_name",
+      "value": "Teamoria Growth Plan"
+    },
+    {
+      "key": "updated_plan_name",
+      "value": "Teamoria Growth Plan Updated"
+    },
+    {
+      "key": "plan_price_monthly",
+      "value": "49.99"
+    },
+    {
+      "key": "plan_price_yearly",
+      "value": "499.99"
+    },
+    {
+      "key": "plan_max_projects",
+      "value": "25"
+    },
+    {
+      "key": "plan_max_members",
+      "value": "50"
+    },
+    {
+      "key": "plan_max_storage_mb",
+      "value": "10240"
+    },
+    {
+      "key": "plan_has_ai_features",
+      "value": "true"
+    },
+    {
+      "key": "billing_cycle",
+      "value": "monthly"
+    },
+    {
+      "key": "payment_reference_number",
+      "value": "TEAMORIA-POSTMAN-001"
+    },
+    {
+      "key": "payment_id",
+      "value": ""
+    },
+    {
+      "key": "subscription_id",
+      "value": ""
+    },
+    {
+      "key": "subscriptions_page",
+      "value": "1"
+    },
+    {
+      "key": "subscriptions_per_page",
+      "value": "15"
+    },
+    {
+      "key": "subscription_status",
+      "value": "active"
+    },
+    {
+      "key": "chat_message",
+      "value": "Summarize the latest project state and suggest next actions."
+    },
+    {
+      "key": "chat_message_id",
+      "value": ""
     }
   ]
 }
