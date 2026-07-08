@@ -45,6 +45,7 @@ it('broadcasts the ai message on the users private chat channel', function () {
     $payload = $event->broadcastWith();
 
     expect($event->broadcastOn()[0]->name)->toBe('private-chat.'.$user->id)
+        ->and($event->broadcastAs())->toBe('ai.message.received')
         ->and($payload['message']['id'])->toBe($aiMessage->id)
         ->and($payload['message']['chat_session_id'])->toBe($session->id)
         ->and($payload['message']['role'])->toBe(MessageRole::AI->value)

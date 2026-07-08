@@ -56,7 +56,6 @@ class ChatController extends Controller
         $sessions = $user->chatSessions()
             ->with([
                 'project:id,name',
-                'messages' => fn ($query) => $query->oldest(),
             ])
             ->latest()
             ->get();
@@ -64,6 +63,29 @@ class ChatController extends Controller
         return $this->successResponse(
             $sessions,
             'Chat sessions fetched successfully.',
+        );
+    }
+
+    public function getMessages(Request $request, ChatSession $session): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($session->user_id !== $user->id) {
+            return $this->errorResponse(
+                'You do not have permission to view this chat session.',
+                403,
+            );
+        }
+
+        $messages = $session->messages()
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->cursorPaginate(30);
+
+        return $this->successResponse(
+            $messages,
+            'Chat messages fetched successfully.',
         );
     }
 

@@ -170,7 +170,47 @@ it('fetches chat sessions from the database', function () {
         ->assertJsonPath('success', true)
         ->assertJsonPath('message', 'Chat sessions fetched successfully.')
         ->assertJsonPath('data.0.id', $session->id)
-        ->assertJsonPath('data.0.messages.0.content', 'What did we decide?');
+        ->assertJsonMissingPath('data.0.messages');
+});
+
+it('fetches chat session messages with cursor pagination in oldest order', function () {
+    $user = User::factory()->create();
+    $session = ChatSession::factory()->for($user)->create();
+
+    foreach (range(1, 31) as $index) {
+        ChatMessage::factory()->for($session)->create([
+            'role' => MessageRole::USER,
+            'content' => 'Message '.$index,
+            'created_at' => now()->addSeconds($index),
+        ]);
+    }
+
+    Sanctum::actingAs($user);
+
+    $this->getJson(
+        route('api.v1.chat.sessions.messages', $session),
+        chatApiHeaders(),
+    )
+        ->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('message', 'Chat messages fetched successfully.')
+        ->assertJsonPath('data.per_page', 30)
+        ->assertJsonPath('data.data.0.content', 'Message 1')
+        ->assertJsonPath('data.data.29.content', 'Message 30')
+        ->assertJsonMissingPath('data.data.30');
+});
+
+it('prevents users from fetching another users chat messages', function () {
+    $owner = User::factory()->create();
+    $intruder = User::factory()->create();
+    $session = ChatSession::factory()->for($owner)->create();
+
+    Sanctum::actingAs($intruder);
+
+    $this->getJson(
+        route('api.v1.chat.sessions.messages', $session),
+        chatApiHeaders(),
+    )->assertForbidden();
 });
 
 function chatApiHeaders(): array

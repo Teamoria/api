@@ -30,6 +30,11 @@ class AiResponseReceived implements ShouldBroadcast
         ];
     }
 
+    public function broadcastAs(): string
+    {
+        return 'ai.message.received';
+    }
+
     /**
      * @return array{message: array{id: string, chat_session_id: string, role: string, content: string, created_at: ?string, updated_at: ?string}}
      */

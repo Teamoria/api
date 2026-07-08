@@ -96,6 +96,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->group(function () {
                 Route::post('/messages', 'sendMessage')->name('messages.store');
                 Route::get('/sessions', 'sessions')->name('sessions');
+                Route::get('/sessions/{session}/messages', 'getMessages')->name('sessions.messages');
             });
 
         Route::prefix('uploads')

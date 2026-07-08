@@ -70,7 +70,7 @@ class SendChatMessageRequest extends FormRequest
                 'sometimes',
                 'nullable',
                 'uuid',
-                Rule::exists((new Project)->getTable(), 'id')->whereNull('deleted_at'),
+                Rule::exists(Project::class, 'id')->whereNull('deleted_at'),
             ],
             'message_content' => ['required', 'string', 'max:5000'],
         ];
