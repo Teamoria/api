@@ -60,8 +60,9 @@ class ProcessAiChatJob implements ShouldQueue
                 'X-User-Role' => $this->session->user->role->value,
             ]))
             ->post($endpoint, [
-                'user_id' => $this->session->user->id,
-                'company_id' => $this->session->user->company_id,
+                'user_id' => (string) $this->session->user->id,
+                'company_id' => (string) $this->session->user->company_id,
+                'project_id' => $this->session->project_id === null ? null : (string) $this->session->project_id,
                 'message' => $this->message,
                 'chat_history' => $this->chatHistory(),
             ])

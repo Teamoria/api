@@ -6,6 +6,7 @@ use App\Jobs\ProcessAiChatJob;
 use App\Models\ChatMessage;
 use App\Models\ChatSession;
 use App\Models\Company;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -21,7 +22,13 @@ it('sends chat context to the ai service and broadcasts the reply', function () 
 
     $company = Company::factory()->create();
     $user = User::factory()->for($company)->create();
-    $session = ChatSession::factory()->for($user)->create();
+    $project = Project::query()->create([
+        'company_id' => $company->id,
+        'name' => 'AI Integration Project',
+    ]);
+    $session = ChatSession::factory()->for($user)->create([
+        'project_id' => $project->id,
+    ]);
     $historyMessage = ChatMessage::factory()->for($session)->create([
         'role' => MessageRole::AI,
         'content' => 'Welcome back. What can I help with?',
@@ -34,6 +41,8 @@ it('sends chat context to the ai service and broadcasts the reply', function () 
             'status' => 'success',
             'data' => [
                 'reply' => 'Here is the API-powered answer.',
+                'sources_used' => [],
+                'chat_history' => null,
             ],
         ]),
     ]);
@@ -47,6 +56,7 @@ it('sends chat context to the ai service and broadcasts the reply', function () 
         && $request->hasHeader('X-User-Id', $user->id)
         && $request['user_id'] === $user->id
         && $request['company_id'] === $company->id
+        && $request['project_id'] === $project->id
         && $request['message'] === 'Hello API'
         && $request['chat_history'] === [
             [
