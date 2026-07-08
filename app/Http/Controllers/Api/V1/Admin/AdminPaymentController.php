@@ -55,12 +55,16 @@ class AdminPaymentController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $billingPeriodStartsAt = $subscription->ends_at?->isFuture() === true
+                ? $subscription->ends_at->copy()
+                : $startsAt->copy();
+
             $subscription->update([
                 'status' => SubscriptionStatus::ACTIVE,
                 'starts_at' => $startsAt,
                 'ends_at' => match ($subscription->billing_cycle) {
-                    BillingCycle::MONTHLY => $startsAt->copy()->addMonth(),
-                    BillingCycle::YEARLY => $startsAt->copy()->addYear(),
+                    BillingCycle::MONTHLY => $billingPeriodStartsAt->addMonth(),
+                    BillingCycle::YEARLY => $billingPeriodStartsAt->addYear(),
                 },
             ]);
 

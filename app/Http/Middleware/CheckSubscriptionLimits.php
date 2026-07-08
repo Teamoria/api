@@ -2,8 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\ApiException;
+use App\Models\Company;
 use Closure;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,16 +20,12 @@ class CheckSubscriptionLimits
         $company = $request->user()?->company;
 
         if ($company === null) {
-            return $this->forbidden('You must be assigned to a company to use this feature.');
+            throw ApiException::forbidden('You must be assigned to a company to use this feature.');
         }
 
         $message = match ($feature) {
-            'members' => $company->canAddMoreMembers($company->users()->count())
-                ? null
-                : 'Upgrade your plan to add more members.',
-            'projects' => $company->canAddMoreProjects($company->projects()->count())
-                ? null
-                : 'Upgrade your plan to add more projects.',
+            'members' => $this->membersLimitMessage($company),
+            'projects' => $this->projectsLimitMessage($company),
             'ai_chat' => $company->hasAiChatAccess()
                 ? null
                 : 'Upgrade your plan to use AI chat.',
@@ -36,19 +33,27 @@ class CheckSubscriptionLimits
         };
 
         if ($message !== null) {
-            return $this->forbidden($message);
+            throw ApiException::forbidden($message);
         }
 
         return $next($request);
     }
 
-    private function forbidden(string $message): JsonResponse
+    private function membersLimitMessage(Company $company): ?string
     {
-        return response()->json([
-            'success' => false,
-            'message' => $message,
-            'error_code' => 'SUBSCRIPTION_LIMIT_REACHED',
-            'data' => [],
-        ], Response::HTTP_FORBIDDEN);
+        $count = $company->users()->count();
+
+        return $company->canAddMoreMembers($count)
+            ? null
+            : 'Upgrade your plan to add more members.';
+    }
+
+    private function projectsLimitMessage(Company $company): ?string
+    {
+        $count = $company->projects()->count();
+
+        return $company->canAddMoreProjects($count)
+            ? null
+            : 'Upgrade your plan to add more projects.';
     }
 }

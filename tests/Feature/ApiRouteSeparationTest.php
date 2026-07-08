@@ -125,6 +125,7 @@ it('assigns a company project creator as its manager', function () {
     $owner = User::factory()->create([
         'role' => UserRole::COMPANY_OWNER,
     ]);
+    grantActiveSubscription($owner->company);
 
     Sanctum::actingAs($owner);
 

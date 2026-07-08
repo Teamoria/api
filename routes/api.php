@@ -89,7 +89,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
             ->name('chat.')
             ->controller(ChatController::class)
             ->group(function () {
-                Route::post('/', 'ask')->name('ask');
+                Route::post('/', 'ask')->middleware('subscription.limit:ai_chat')->name('ask');
                 Route::get('/sessions', 'sessions')->name('sessions');
             });
 
@@ -209,7 +209,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
                     ->controller(StaffController::class)
                     ->group(function () {
                         Route::get('/', 'index')->name('index');
-                        Route::post('/', 'store')->name('store');
+                        Route::post('/', 'store')->middleware('subscription.limit:members')->name('store');
                         Route::get('/{id}', 'show')->name('show');
                         Route::put('/{id}', 'update')->name('update');
                         Route::delete('/{id}', 'destroy')->name('destroy');
@@ -219,7 +219,7 @@ Route::prefix('v1')->middleware('check-api-key')->name('api.v1.')->group(functio
 
                 Route::prefix('projects')->name('projects.')->controller(ProjectController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
-                    Route::post('/', 'store')->name('store');
+                    Route::post('/', 'store')->middleware('subscription.limit:projects')->name('store');
                     Route::get('/{id}', 'show')->name('show');
                     Route::put('/{id}', 'update')->name('update');
                     Route::delete('/{id}', 'destroy')->name('destroy');

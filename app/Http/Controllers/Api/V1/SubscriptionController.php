@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\PlanStatus;
 use App\Enums\SubscriptionStatus;
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Api\Controller;
 use App\Http\Requests\Billing\SubscribeRequest;
 use App\Http\Resources\PaymentResource;
@@ -63,6 +64,12 @@ class SubscriptionController extends Controller
             return $this->errorResponse(
                 'You must be assigned to a company to subscribe to a plan.',
                 403,
+            );
+        }
+
+        if ($company->payments()->where('status', PaymentStatus::PENDING->value)->exists()) {
+            throw ApiException::badRequest(
+                'You already have a pending subscription request. Please wait for admin approval.',
             );
         }
 
