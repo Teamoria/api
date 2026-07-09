@@ -52,6 +52,7 @@ it('sends chat context to the ai service and broadcasts the reply', function () 
 
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
         && $request->url() === 'https://ai.example.test/api/v1/chat'
+        && $request->hasHeader('User-Agent', 'Teamoria-Laravel-Backend/1.0')
         && $request->hasHeader('X-Internal-API-Key', 'internal-ai-key')
         && $request->hasHeader('X-User-Id', $user->id)
         && $request['user_id'] === (string) $user->id
