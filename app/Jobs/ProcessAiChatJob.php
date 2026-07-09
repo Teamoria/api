@@ -55,6 +55,7 @@ class ProcessAiChatJob implements ShouldQueue
             ->connectTimeout(10)
             ->retry(2, 1000)
             ->withHeaders(array_filter([
+                'User-Agent' => 'Teamoria-Laravel-Backend/1.0',
                 'X-Internal-API-Key' => config('services.ai.api_key'),
                 'X-User-Id' => $this->session->user->id,
                 'X-User-Role' => $this->session->user->role->value,

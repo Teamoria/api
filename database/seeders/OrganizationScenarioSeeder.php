@@ -133,7 +133,7 @@ class OrganizationScenarioSeeder extends Seeder
         $password = Hash::make('password');
         $userScenarios = [
             [
-                'email' => 'ahmedalyazuri@gmail.com',
+                'email' => 'admin@teamoria.test',
                 'company_id' => null,
                 'name' => 'System Admin',
                 'email_verified_at' => now(),

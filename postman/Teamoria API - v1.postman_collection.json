@@ -6631,6 +6631,7 @@
         "requests": [],
         "exec": [
           "pm.request.headers.upsert({ key: 'Accept', value: 'application/json' });",
+          "pm.request.headers.upsert({ key: 'User-Agent', value: 'Teamoria-Laravel-Backend/1.0' });",
           "",
           "if (pm.request.body && pm.request.body.mode === 'raw') {",
           "    pm.request.headers.upsert({ key: 'Content-Type', value: 'application/json' });",
