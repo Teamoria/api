@@ -74,7 +74,7 @@ it('seeds every demo scenario and can be safely run again', function () {
     $projectRoles = Project::query()
         ->with('users')
         ->get()
-        ->flatMap(fn (Project $project) => $project->users->pluck('pivot.role'))
+        ->flatMap(fn(Project $project) => $project->users->pluck('pivot.role'))
         ->unique()
         ->sort()
         ->values()
@@ -83,7 +83,7 @@ it('seeds every demo scenario and can be safely run again', function () {
     $uploadAccessLevels = Upload::query()
         ->with('sharedUsers')
         ->get()
-        ->flatMap(fn (Upload $upload) => $upload->sharedUsers->pluck('pivot.access_level'))
+        ->flatMap(fn(Upload $upload) => $upload->sharedUsers->pluck('pivot.access_level'))
         ->unique()
         ->sort()
         ->values()
@@ -111,7 +111,7 @@ it('seeds every demo scenario and can be safely run again', function () {
         ))->toBeTrue()
         ->and(Hash::check(
             '1234568',
-            User::query()->where('email', 'ahmedalyazuri@gmail.com')->sole()->password,
+            User::query()->where('email', 'admin@teamoria.test')->sole()->password,
         ))->toBeTrue();
 });
 
@@ -123,9 +123,9 @@ function sortedValues(array $values): array
 {
     return collect($values)
         ->map(
-            fn (BackedEnum|int|string $value): int|string => $value instanceof BackedEnum
-                ? $value->value
-                : $value,
+            fn(BackedEnum|int|string $value): int|string => $value instanceof BackedEnum
+            ? $value->value
+            : $value,
         )
         ->unique()
         ->sort()
