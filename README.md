@@ -260,4 +260,4 @@ Configure production secrets in GitHub Actions before relying on automated deplo
 - `database/seeders` - repeatable demo scenario data
 - `routes/api.php` - versioned API routes
 - `tests/Feature` - API and workflow tests
-- `postman` - local API collection and environment
+- `postman` - local API collection and environment 
