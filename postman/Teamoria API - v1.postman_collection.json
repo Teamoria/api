@@ -3048,10 +3048,10 @@
                     "messages"
                   ]
                 },
-                "description": "Creates or continues a chat session and queues the message for AI processing. Add session_id manually to continue an existing session.",
+                "description": "Creates or continues a chat session and queues the message for AI processing. Leave chat_session_id empty to create a new session; reuse the stored value to continue an existing session.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"message_content\": \"{{chat_message}}\"\n}",
+                  "raw": "{\n  \"session_id\": \"{{chat_session_id}}\",\n  \"project_id\": \"{{project_id}}\",\n  \"message_content\": \"{{chat_message}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -6134,10 +6134,10 @@
                     "messages"
                   ]
                 },
-                "description": "Creates or continues a chat session and queues the message for AI processing. Add session_id manually to continue an existing session.",
+                "description": "Creates or continues a chat session and queues the message for AI processing. Leave chat_session_id empty to create a new session; reuse the stored value to continue an existing session.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"project_id\": \"{{project_id}}\",\n  \"message_content\": \"{{chat_message}}\"\n}",
+                  "raw": "{\n  \"session_id\": \"{{chat_session_id}}\",\n  \"project_id\": \"{{project_id}}\",\n  \"message_content\": \"{{chat_message}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -6618,6 +6618,104 @@
           }
         ]
       }
+    },
+    {
+      "name": "[4] Realtime",
+      "item": [
+        {
+          "name": "Connect Reverb WebSocket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{websocket_origin}}/app/{{reverb_app_key}}?protocol={{websocket_protocol}}&client={{websocket_client}}&version={{websocket_client_version}}",
+              "host": [
+                "{{websocket_origin}}"
+              ],
+              "path": [
+                "app",
+                "{{reverb_app_key}}"
+              ],
+              "query": [
+                {
+                  "key": "protocol",
+                  "value": "{{websocket_protocol}}"
+                },
+                {
+                  "key": "client",
+                  "value": "{{websocket_client}}"
+                },
+                {
+                  "key": "version",
+                  "value": "{{websocket_client_version}}"
+                }
+              ]
+            },
+            "description": "Open this as a Postman WebSocket request. Reverb speaks the Pusher protocol. After connecting and authorizing the private channel, send a subscribe message like {\"event\":\"pusher:subscribe\",\"data\":{\"channel\":\"private-chat.<authenticated_user_id>\",\"auth\":\"<broadcast_auth>\"}} and listen for .ai.message.received."
+          },
+          "response": []
+        },
+        {
+          "name": "Authorize Private Chat Channel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Private chat channel is authorized', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('auth');",
+                  "    pm.expect(json.auth).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const scope = pm.environment && pm.environment.name ? pm.environment : pm.collectionVariables;",
+                  "    scope.set('broadcast_auth', pm.response.json().auth);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{api_origin}}/broadcasting/auth",
+              "host": [
+                "{{api_origin}}"
+              ],
+              "path": [
+                "broadcasting",
+                "auth"
+              ]
+            },
+            "description": "Authorizes the authenticated Sanctum user for the private AI chat channel. Use a socket_id from the active WebSocket connection and channel_name private-chat.<authenticated_user_id>.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"socket_id\": \"{{broadcast_socket_id}}\",\n  \"channel_name\": \"private-chat.{{authenticated_user_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Laravel Reverb WebSocket connection and private channel authorization for AI chat events.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{access_token}}",
+            "type": "string"
+          }
+        ]
+      }
     }
   ],
   "auth": {
@@ -6656,6 +6754,7 @@
         "exec": [
           "const requestPath = pm.request.url.getPath();",
           "const isAiChatRequest = requestPath.includes('/api/v1/chat');",
+          "const isBroadcastAuthResponse = requestPath.endsWith('/broadcasting/auth');",
           "const responseTimeVariable = isAiChatRequest ? 'ai_response_time_limit_ms' : 'response_time_limit_ms';",
           "const defaultResponseTimeLimit = isAiChatRequest ? 120000 : 2000;",
           "const responseTimeLimit = Number(pm.variables.get(responseTimeVariable) || defaultResponseTimeLimit);",
@@ -6673,6 +6772,14 @@
           "} else if (isDownloadResponse) {",
           "    pm.test('Response is a file download', function () {",
           "        pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment');",
+          "    });",
+          "} else if (isBroadcastAuthResponse) {",
+          "    pm.test('Broadcast auth response is JSON', function () {",
+          "        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "    });",
+          "",
+          "    pm.test('Broadcast auth response includes auth signature', function () {",
+          "        pm.expect(pm.response.json()).to.have.property('auth');",
           "    });",
           "} else {",
           "    pm.test('Response is JSON', function () {",
@@ -6896,14 +7003,6 @@
       "value": ""
     },
     {
-      "key": "chat_question",
-      "value": "What are the latest project decisions and next actions?"
-    },
-    {
-      "key": "chat_context",
-      "value": "Focus on decisions, blockers, owners, and actionable next steps."
-    },
-    {
       "key": "chat_session_id",
       "value": ""
     },
@@ -6942,10 +7041,6 @@
     {
       "key": "task_completed",
       "value": "false"
-    },
-    {
-      "key": "chat_top_k",
-      "value": "5"
     },
     {
       "key": "task_filter_status",
@@ -7034,6 +7129,30 @@
     {
       "key": "chat_message",
       "value": "Summarize the latest project state and suggest next actions."
+    },
+    {
+      "key": "websocket_origin",
+      "value": "wss://api.teamoria.online"
+    },
+    {
+      "key": "websocket_protocol",
+      "value": "7"
+    },
+    {
+      "key": "websocket_client",
+      "value": "js"
+    },
+    {
+      "key": "websocket_client_version",
+      "value": "8.4.0"
+    },
+    {
+      "key": "broadcast_socket_id",
+      "value": "123.456"
+    },
+    {
+      "key": "broadcast_auth",
+      "value": ""
     },
     {
       "key": "chat_message_id",
