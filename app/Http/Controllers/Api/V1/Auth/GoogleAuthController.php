@@ -13,6 +13,7 @@ use Laravel\Socialite\AbstractUser;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\GoogleProvider;
+use App\Enums\UserRole;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -110,7 +111,7 @@ class GoogleAuthController extends Controller
         $googleId = $googleUser->getId();
         $email = $googleUser->getEmail();
 
-        if (! is_string($googleId) || $googleId === '' || ! is_string($email) || $email === '') {
+        if (!is_string($googleId) || $googleId === '' || !is_string($email) || $email === '') {
             throw new RuntimeException('Google did not return a valid user identifier and email address.');
         }
 
@@ -121,18 +122,19 @@ class GoogleAuthController extends Controller
                 'google_id' => $googleId,
                 'password' => Str::random(64),
                 'email_verified_at' => now(),
+                'role' => UserRole::COMPANY_OWNER->value,
                 'status' => UserStatus::ACTIVE->value,
             ]
         );
 
-        if (! $user->google_id) {
+        if (!$user->google_id) {
             $user->google_id = $googleId;
             $user->status = UserStatus::ACTIVE->value;
-        } elseif (! hash_equals((string) $user->google_id, $googleId)) {
+        } elseif (!hash_equals((string) $user->google_id, $googleId)) {
             throw new RuntimeException('The Google account does not match the linked account.');
         }
 
-        if (! $user->email_verified_at) {
+        if (!$user->email_verified_at) {
             $user->email_verified_at = now();
         }
 
